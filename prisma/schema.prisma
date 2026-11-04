@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN // dono da plataforma
+  STORE_OWNER // dono da loja
+  STORE_STAFF // funcionário da loja
+}
+
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+  OTHER
+}
+
+enum Fuel {
+  FLEX
+  GASOLINE
+  ETHANOL
+  DIESEL
+  ELECTRIC
+  HYBRID
+  GNV
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  CVT
+  AUTOMATED
+}
+
+enum VehicleStatus {
+  PREPARING // em preparação (não aparece no site)
+  AVAILABLE // à venda
+  RESERVED // reservado
+  SOLD // vendido
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STORE_STAFF)
+  active       Boolean  @default(true)
+  storeId      String?
+  store        Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+model Store {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  cnpj        String?     @unique
+  email       String
+  phone       String?
+  whatsapp    String?
+  zipCode     String?
+  address     String?
+  city        String
+  state       String      @db.Char(2)
+  description String?
+  logoUrl     String?
+  status      StoreStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  users    User[]
+  vehicles Vehicle[]
+  leads    Lead[]
+
+  @@index([status])
+  @@index([city, state])
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  type            VehicleType   @default(CAR)
+  brand           String
+  model           String
+  version         String?
+  yearManufacture Int
+  yearModel       Int
+  mileage         Int           @default(0)
+  price           Decimal       @db.Decimal(12, 2)
+  color           String?
+  fuel            Fuel          @default(FLEX)
+  transmission    Transmission  @default(MANUAL)
+  doors           Int?
+  // Dados internos: nunca exibidos no site público
+  plate           String?
+  renavam         String?
+  chassis         String?
+  description     String?
+  features        String[]      @default([])
+  status          VehicleStatus @default(PREPARING)
+  published       Boolean       @default(false)
+  featured        Boolean       @default(false)
+  views           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  photos VehiclePhoto[]
+  leads  Lead[]
+
+  @@unique([storeId, plate])
+  @@index([published, status])
+  @@index([brand, model])
+  @@index([price])
+}
+
+model VehiclePhoto {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId, position])
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  name      String
+  phone     String
+  email     String?
+  message   String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+}
