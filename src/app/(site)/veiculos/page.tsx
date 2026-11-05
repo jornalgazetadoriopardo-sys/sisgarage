@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { searchVehicles, publicBrands, type VehicleSearch } from "@/lib/vehicles";
+import { searchVehicles, publicBrands, publicFeatures, type VehicleSearch } from "@/lib/vehicles";
 import { VehicleCard } from "@/components/VehicleCard";
 import { SearchFilters } from "@/components/SearchFilters";
 import { Pagination } from "@/components/Pagination";
@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Veículos à venda" };
 
 export default async function VehiclesPage({ searchParams }: { searchParams: Promise<VehicleSearch> }) {
   const params = await searchParams;
-  const [result, brands] = await Promise.all([searchVehicles(params), publicBrands()]);
+  const [result, brands, features] = await Promise.all([searchVehicles(params), publicBrands(), publicFeatures()]);
   const title = params.marca ? `${params.marca} à venda` : "Veículos à venda";
 
   return (
@@ -25,10 +25,10 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
         <aside>
           <details className="lg:hidden" open={false}>
             <summary className="btn-secondary mb-3 w-full">Filtros</summary>
-            <SearchFilters values={params} brands={brands} />
+            <SearchFilters values={params} brands={brands} features={features} />
           </details>
           <div className="hidden lg:block">
-            <SearchFilters values={params} brands={brands} />
+            <SearchFilters values={params} brands={brands} features={features} />
           </div>
         </aside>
         <section>

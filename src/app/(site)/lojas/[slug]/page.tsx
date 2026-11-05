@@ -1,20 +1,28 @@
+/* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-/* eslint-disable @next/next/no-img-element */
 import { prisma } from "@/lib/db";
 import { searchVehicles, type VehicleSearch } from "@/lib/vehicles";
-import { whatsappLink } from "@/lib/format";
+import { formatPhone, telLink, whatsappLink } from "@/lib/format";
+import { absoluteUrl } from "@/lib/site";
 import { VehicleCard } from "@/components/VehicleCard";
 import { Pagination } from "@/components/Pagination";
+import { SortSelect } from "@/components/SortSelect";
+import { JsonLd } from "@/components/JsonLd";
 
 const getStore = cache((slug: string) => prisma.store.findFirst({ where: { slug, status: "ACTIVE" } }));
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const store = await getStore((await params).slug);
-  return store
-    ? { title: `${store.name} — ${store.city}/${store.state}`, description: store.description ?? undefined }
-    : { title: "Loja não encontrada" };
+  if (!store) return { title: "Loja não encontrada" };
+  const title = `${store.name} — ${store.city}/${store.state}`;
+  return {
+    title,
+    description: store.description ?? `Veículos à venda na ${store.name}, em ${store.city}/${store.state}.`,
+    alternates: { canonical: `/lojas/${store.slug}` },
+    openGraph: { title, images: store.logoUrl ? [absoluteUrl(store.logoUrl)] : [] },
+  };
 }
 
 export default async function StorePage({
@@ -28,11 +36,31 @@ export default async function StorePage({
   const sp = await searchParams;
   const store = await getStore(slug);
   if (!store) notFound();
-  const result = await searchVehicles(sp, store.id);
+  const result = await searchVehicles(sp, { storeId: store.id });
+  const whats = store.whatsapp || store.phone;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <header className="card mb-8 flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "AutoDealer",
+          name: store.name,
+          url: absoluteUrl(`/lojas/${store.slug}`),
+          image: store.logoUrl ? absoluteUrl(store.logoUrl) : undefined,
+          telephone: store.phone ?? store.whatsapp ?? undefined,
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: store.address ?? undefined,
+            addressLocality: store.city,
+            addressRegion: store.state,
+            postalCode: store.zipCode ?? undefined,
+            addressCountry: "BR",
+          },
+          sameAs: store.instagram ? [`https://instagram.com/${store.instagram}`] : undefined,
+        }}
+      />
+      <header className="card mb-8 flex flex-col gap-4 p-6 md:flex-row md:items-center">
         {store.logoUrl ? (
           <img src={store.logoUrl} alt={store.name} className="h-20 w-20 rounded-xl object-cover" />
         ) : (
@@ -40,24 +68,35 @@ export default async function StorePage({
             {store.name.charAt(0)}
           </div>
         )}
-        <div className="flex-1">
+        <div className="flex-1 space-y-1">
           <h1 className="text-2xl font-bold">{store.name}</h1>
           <p className="text-slate-600">{store.address ? `${store.address} · ` : ""}{store.city}/{store.state}</p>
-          {store.description && <p className="mt-2 max-w-3xl text-sm text-slate-600">{store.description}</p>}
+          {store.openingHours && <p className="text-sm text-slate-500">🕒 {store.openingHours}</p>}
+          {store.description && <p className="max-w-3xl pt-1 text-sm text-slate-600">{store.description}</p>}
         </div>
-        {(store.whatsapp || store.phone) && (
-          <a className="btn-whatsapp" target="_blank" rel="noopener noreferrer"
-            href={whatsappLink((store.whatsapp || store.phone)!, `Olá, vim pelo SisGarage!`)}>
-            WhatsApp da loja
-          </a>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {whats && (
+            <a className="btn-whatsapp" target="_blank" rel="noopener noreferrer" href={whatsappLink(whats, "Olá, vim pelo SisGarage!")}>
+              WhatsApp
+            </a>
+          )}
+          {store.phone && <a className="btn-secondary" href={telLink(store.phone)}>{formatPhone(store.phone)}</a>}
+          {store.instagram && (
+            <a className="btn-secondary" target="_blank" rel="noopener noreferrer" href={`https://instagram.com/${store.instagram}`}>
+              @{store.instagram}
+            </a>
+          )}
+        </div>
       </header>
-      <h2 className="mb-4 text-xl font-bold">Estoque ({result.total})</h2>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-bold">Estoque ({result.total})</h2>
+        <SortSelect value={sp.ordem} />
+      </div>
       {result.items.length === 0 ? (
         <p className="card p-10 text-center text-slate-500">Nenhum veículo publicado no momento.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {result.items.map((v) => <VehicleCard key={v.id} vehicle={v} />)}
+          {result.items.map((v) => <VehicleCard key={v.id} vehicle={v} showStore={false} />)}
         </div>
       )}
       <Pagination page={result.page} pages={result.pages} basePath={`/lojas/${slug}`} params={{ ...sp }} />

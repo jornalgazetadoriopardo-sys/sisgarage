@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PanelShell } from "@/components/PanelShell";
 import { storeStatusLabels } from "@/lib/labels";
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const { user, store } = await requireStoreUser();
@@ -19,6 +22,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           { href: "/painel/usuarios", label: "Usuários" },
         ]
       : []),
+    { href: "/painel/conta", label: "Minha senha" },
   ];
 
   const banner =
@@ -34,7 +38,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     ) : (
       <div className="bg-brand-50">
         <p className="mx-auto max-w-7xl px-4 py-2 text-sm text-brand-700">
-          Sua vitrine: <Link className="font-semibold underline" href={`/lojas/${store.slug}`} target="_blank">/lojas/{store.slug}</Link>
+          Sua vitrine: <Link className="font-semibold underline" href={`/lojas/${store.slug}`} target="_blank" rel="noopener">/lojas/{store.slug}</Link>
         </p>
       </div>
     );

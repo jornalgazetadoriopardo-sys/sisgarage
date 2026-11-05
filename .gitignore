@@ -7,3 +7,5 @@ out
 next-env.d.ts
 storage/uploads/*
 !storage/uploads/.gitkeep
+storage/originals/*
+!storage/originals/.gitkeep

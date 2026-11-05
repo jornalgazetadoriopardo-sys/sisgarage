@@ -4,10 +4,12 @@ import type { VehicleSearch } from "@/lib/vehicles";
 export function SearchFilters({
   values,
   brands,
+  features = [],
   action = "/veiculos",
 }: {
   values: VehicleSearch;
   brands: { brand: string; count: number }[];
+  features?: string[];
   action?: string;
 }) {
   return (
@@ -75,6 +77,15 @@ export function SearchFilters({
           </select>
         </div>
       </div>
+      {features.length > 0 && (
+        <div>
+          <label className="label" htmlFor="opcional">Com o opcional</label>
+          <select id="opcional" name="opcional" defaultValue={values.opcional ?? ""} className="input">
+            <option value="">Qualquer</option>
+            {features.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
+      )}
       {values.ordem && <input type="hidden" name="ordem" value={values.ordem} />}
       <div className="flex gap-2">
         <button type="submit" className="btn-primary flex-1">Filtrar</button>

@@ -2,17 +2,9 @@ import Link from "next/link";
 import type { Prisma, VehicleStatus } from "@prisma/client";
 import { requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatKm, formatPrice } from "@/lib/format";
+import { formatKm, formatPrice, vehicleTitle } from "@/lib/format";
 import { vehicleStatusLabels } from "@/lib/labels";
-import { quickUpdateVehicle } from "@/app/actions/vehicles";
-import { VehiclePhoto } from "@/components/VehiclePhoto";
-
-const statusColors: Record<VehicleStatus, string> = {
-  PREPARING: "bg-slate-100 text-slate-700",
-  AVAILABLE: "bg-green-100 text-green-800",
-  RESERVED: "bg-amber-100 text-amber-800",
-  SOLD: "bg-blue-100 text-blue-800",
-};
+import { VehicleSortList } from "@/components/VehicleSortList";
 
 export default async function PanelVehicles({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const { storeId } = await requireStoreUser();
@@ -23,22 +15,26 @@ export default async function PanelVehicles({ searchParams }: { searchParams: Pr
   if (q?.trim()) {
     const term = q.trim();
     where.OR = [
-      { brand: { contains: term, mode: "insensitive" } },
-      { model: { contains: term, mode: "insensitive" } },
-      { version: { contains: term, mode: "insensitive" } },
+      { brand: { contains: term } },
+      { model: { contains: term } },
+      { version: { contains: term } },
       { plate: { contains: term.toUpperCase().replace(/[^A-Z0-9]/g, "") } },
     ];
   }
   const vehicles = await prisma.vehicle.findMany({
     where,
-    orderBy: { updatedAt: "desc" },
-    include: { photos: { orderBy: { position: "asc" }, take: 1 }, _count: { select: { photos: true, leads: true } } },
+    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
+    include: {
+      photos: { orderBy: { position: "asc" }, take: 1, select: { thumbUrl: true } },
+      _count: { select: { photos: true, leads: true } },
+    },
   });
+  const filtered = Boolean(q?.trim() || status);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">Veículos</h1>
+        <h1 className="text-2xl font-bold">Veículos ({vehicles.length})</h1>
         <Link href="/painel/veiculos/novo" className="btn-primary">+ Novo veículo</Link>
       </div>
       <form className="flex flex-col gap-2 sm:flex-row">
@@ -56,36 +52,21 @@ export default async function PanelVehicles({ searchParams }: { searchParams: Pr
           <Link href="/painel/veiculos/novo" className="btn-primary mt-4">Cadastrar o primeiro</Link>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {vehicles.map((v) => (
-            <li key={v.id} className="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
-              <Link href={`/painel/veiculos/${v.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                  <VehiclePhoto url={v.photos[0]?.url} alt={v.model} />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{v.brand} {v.model} {v.version}</p>
-                  <p className="text-sm text-slate-500">
-                    {v.yearManufacture}/{v.yearModel} · {formatKm(v.mileage)} · {v.plate ?? "sem placa"}
-                  </p>
-                  <p className="text-xs text-slate-400">{v._count.photos} foto(s) · {v._count.leads} contato(s) · {v.views} visualização(ões)</p>
-                </div>
-              </Link>
-              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <span className="font-bold">{formatPrice(v.price)}</span>
-                <span className={`badge ${statusColors[v.status]}`}>{vehicleStatusLabels[v.status]}</span>
-                <form action={quickUpdateVehicle}>
-                  <input type="hidden" name="id" value={v.id} />
-                  <input type="hidden" name="published" value={String(!v.published)} />
-                  <button className={`badge cursor-pointer ${v.published ? "bg-green-600 text-white" : "bg-slate-200 text-slate-600"}`}
-                    title={v.published ? "Clique para ocultar do site" : "Clique para publicar no site"}>
-                    {v.published ? "No site" : "Oculto"}
-                  </button>
-                </form>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <VehicleSortList
+          key={vehicles.map((v) => `${v.id}${v.updatedAt.getTime()}`).join()}
+          sortable={!filtered}
+          rows={vehicles.map((v) => ({
+            id: v.id,
+            title: vehicleTitle(v),
+            subtitle: `${v.yearManufacture}/${v.yearModel} · ${formatKm(v.mileage)} · ${v.plate ?? "sem placa"}`,
+            stats: `${v._count.photos} foto(s) · ${v._count.leads} contato(s) · ${v.views} visualização(ões)`,
+            price: formatPrice(v.price),
+            status: v.status,
+            published: v.published,
+            featured: v.featured,
+            thumb: v.photos[0]?.thumbUrl ?? null,
+          }))}
+        />
       )}
     </div>
   );

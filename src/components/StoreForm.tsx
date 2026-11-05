@@ -40,6 +40,14 @@ export function StoreForm({ store }: { store: Store }) {
           <label className="label" htmlFor="whatsapp">WhatsApp (recebe os contatos)</label>
           <input id="whatsapp" name="whatsapp" defaultValue={store.whatsapp ?? ""} className="input" />
         </div>
+        <div>
+          <label className="label" htmlFor="instagram">Instagram</label>
+          <input id="instagram" name="instagram" defaultValue={store.instagram ? `@${store.instagram}` : ""} className="input" placeholder="@sualoja" />
+        </div>
+        <div>
+          <label className="label" htmlFor="openingHours">Horário de atendimento</label>
+          <input id="openingHours" name="openingHours" defaultValue={store.openingHours ?? ""} className="input" placeholder="Seg a sex 8h–18h · Sáb 8h–12h" />
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
         <div>

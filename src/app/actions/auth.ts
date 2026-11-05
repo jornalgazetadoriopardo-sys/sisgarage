@@ -1,8 +1,9 @@
 "use server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { createSession, destroySession, hashPassword, verifyPassword } from "@/lib/auth";
+import { createSession, destroySession, getCurrentUser, hashPassword, verifyPassword } from "@/lib/auth";
 import { onlyDigits, slugify } from "@/lib/format";
 import { BR_STATES } from "@/lib/labels";
 import { zodErrors, type ActionState } from "@/lib/action-state";
@@ -13,15 +14,40 @@ const loginSchema = z.object({
   next: z.string().optional(),
 });
 
+const LOCK_MINUTES = 15;
+const MAX_FAILS_PER_EMAIL = 5;
+const MAX_FAILS_PER_IP = 20;
+
+async function clientIp() {
+  const h = await headers();
+  return (h.get("x-forwarded-for")?.split(",")[0] || h.get("x-real-ip") || "local").trim().slice(0, 64);
+}
+
 export async function login(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return zodErrors(parsed.error);
   const { email, password, next } = parsed.data;
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.active || !(await verifyPassword(password, user.passwordHash))) {
-    return { error: "E-mail ou senha incorretos." };
+  // Limite de tentativas gravado no banco (por e-mail e por IP), não por sessão.
+  const ip = await clientIp();
+  const since = new Date(Date.now() - LOCK_MINUTES * 60_000);
+  const [byEmail, byIp] = await Promise.all([
+    prisma.loginAttempt.count({ where: { email, success: false, createdAt: { gte: since } } }),
+    prisma.loginAttempt.count({ where: { ip, success: false, createdAt: { gte: since } } }),
+  ]);
+  if (byEmail >= MAX_FAILS_PER_EMAIL || byIp >= MAX_FAILS_PER_IP) {
+    return { error: `Muitas tentativas sem sucesso. Aguarde ${LOCK_MINUTES} minutos e tente de novo.` };
   }
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  const ok = Boolean(user && user.active && (await verifyPassword(password, user.passwordHash)));
+  await prisma.loginAttempt.create({ data: { email, ip, success: ok } });
+  if (!ok || !user) return { error: "E-mail ou senha incorretos." };
+
+  // limpeza: tentativas antigas e falhas anteriores deste e-mail
+  await prisma.loginAttempt.deleteMany({
+    where: { OR: [{ createdAt: { lt: new Date(Date.now() - 86_400_000) } }, { email, success: false }] },
+  });
   await createSession(user);
 
   const home = user.role === "SUPER_ADMIN" ? "/admin" : "/painel";
@@ -91,4 +117,24 @@ export async function signupStore(_prev: ActionState, formData: FormData): Promi
   });
   await createSession(user);
   redirect("/painel?bemvindo=1");
+}
+
+const passwordSchema = z
+  .object({
+    current: z.string().min(1, "Informe a senha atual"),
+    password: z.string().min(8, "A nova senha precisa ter ao menos 8 caracteres"),
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, { path: ["confirm"], message: "As senhas não conferem" });
+
+export async function changePassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/entrar");
+  const parsed = passwordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return zodErrors(parsed.error);
+  if (!(await verifyPassword(parsed.data.current, user.passwordHash))) {
+    return { error: "Senha atual incorreta.", fieldErrors: { current: "Senha atual incorreta" } };
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(parsed.data.password) } });
+  return { message: "Senha alterada." };
 }

@@ -4,6 +4,8 @@ export type ActionState = {
   error?: string;
   message?: string;
   fieldErrors?: Record<string, string>;
+  /** id do registro criado, quando a ação cria algo */
+  id?: string;
 };
 
 export const initialState: ActionState = {};

@@ -1,7 +1,7 @@
 import "server-only";
 import type { Fuel, Prisma, Transmission, VehicleType } from "@prisma/client";
-import { fuelLabels, transmissionLabels, vehicleTypeLabels } from "./labels";
 import { prisma } from "./db";
+import { fuelLabels, transmissionLabels, vehicleTypeLabels } from "./labels";
 
 /** Condição para um veículo aparecer no site público. */
 export const publicVehicleWhere: Prisma.VehicleWhereInput = {
@@ -12,6 +12,7 @@ export const publicVehicleWhere: Prisma.VehicleWhereInput = {
 
 export const publicVehicleSelect = {
   id: true,
+  type: true,
   brand: true,
   model: true,
   version: true,
@@ -19,10 +20,14 @@ export const publicVehicleSelect = {
   yearModel: true,
   mileage: true,
   price: true,
+  previousPrice: true,
   fuel: true,
   transmission: true,
+  engine: true,
   status: true,
-  photos: { orderBy: { position: "asc" }, take: 1, select: { url: true } },
+  featured: true,
+  featuredLabel: true,
+  photos: { orderBy: { position: "asc" }, take: 1, select: { thumbUrl: true } },
   store: { select: { name: true, city: true, state: true, slug: true } },
 } satisfies Prisma.VehicleSelect;
 
@@ -34,6 +39,7 @@ export type VehicleSearch = {
   tipo?: string;
   combustivel?: string;
   cambio?: string;
+  opcional?: string;
   precoMin?: string;
   precoMax?: string;
   anoMin?: string;
@@ -53,26 +59,27 @@ function int(v?: string) {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export async function searchVehicles(s: VehicleSearch, storeId?: string) {
+/**
+ * Busca no servidor (com paginação). A collation utf8mb4_unicode_ci do MySQL
+ * já ignora maiúsculas e acentos: "volks" encontra "Volkswagen", "sao" encontra "São".
+ */
+export async function searchVehicles(s: VehicleSearch, opts: { storeId?: string } = {}) {
   const and: Prisma.VehicleWhereInput[] = [publicVehicleWhere];
-  if (storeId) and.push({ storeId });
+  if (opts.storeId) and.push({ storeId: opts.storeId });
 
   const q = s.q?.trim();
   if (q) {
     for (const term of q.split(/\s+/).slice(0, 5)) {
       and.push({
-        OR: [
-          { brand: { contains: term, mode: "insensitive" } },
-          { model: { contains: term, mode: "insensitive" } },
-          { version: { contains: term, mode: "insensitive" } },
-        ],
+        OR: [{ brand: { contains: term } }, { model: { contains: term } }, { version: { contains: term } }],
       });
     }
   }
-  if (s.marca) and.push({ brand: { equals: s.marca, mode: "insensitive" } });
+  if (s.marca) and.push({ brand: s.marca });
   if (s.tipo && s.tipo in vehicleTypeLabels) and.push({ type: s.tipo as VehicleType });
   if (s.combustivel && s.combustivel in fuelLabels) and.push({ fuel: s.combustivel as Fuel });
   if (s.cambio && s.cambio in transmissionLabels) and.push({ transmission: s.cambio as Transmission });
+  if (s.opcional) and.push({ features: { some: { name: s.opcional } } });
   const precoMin = int(s.precoMin);
   const precoMax = int(s.precoMax);
   if (precoMin !== undefined) and.push({ price: { gte: precoMin } });
@@ -83,7 +90,7 @@ export async function searchVehicles(s: VehicleSearch, storeId?: string) {
   if (anoMax !== undefined) and.push({ yearModel: { lte: anoMax } });
   const kmMax = int(s.kmMax);
   if (kmMax !== undefined) and.push({ mileage: { lte: kmMax } });
-  if (s.cidade) and.push({ store: { city: { equals: s.cidade, mode: "insensitive" } } });
+  if (s.cidade) and.push({ store: { city: s.cidade } });
   if (s.uf) and.push({ store: { state: s.uf.toUpperCase() } });
 
   const orderBy: Prisma.VehicleOrderByWithRelationInput[] =
@@ -91,20 +98,14 @@ export async function searchVehicles(s: VehicleSearch, storeId?: string) {
     : s.ordem === "maior-preco" ? [{ price: "desc" }]
     : s.ordem === "menor-km" ? [{ mileage: "asc" }]
     : s.ordem === "mais-novo" ? [{ yearModel: "desc" }]
+    : opts.storeId ? [{ position: "asc" }, { createdAt: "desc" }] // vitrine da loja: ordem escolhida pela loja
     : [{ featured: "desc" }, { createdAt: "desc" }];
 
   const page = Math.max(1, int(s.pagina) ?? 1);
   const where: Prisma.VehicleWhereInput = { AND: and };
-
   const [total, items] = await prisma.$transaction([
     prisma.vehicle.count({ where }),
-    prisma.vehicle.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: publicVehicleSelect,
-    }),
+    prisma.vehicle.findMany({ where, orderBy, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, select: publicVehicleSelect }),
   ]);
   return { total, items, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
@@ -119,12 +120,34 @@ export async function publicBrands() {
   return rows.map((r) => ({ brand: r.brand, count: r._count._all }));
 }
 
-export async function publicCities() {
-  const rows = await prisma.store.findMany({
-    where: { status: "ACTIVE", vehicles: { some: publicVehicleWhere } },
-    select: { city: true, state: true },
-    distinct: ["city", "state"],
-    orderBy: [{ state: "asc" }, { city: "asc" }],
+/** "Veja também": mesmo tipo, preço parecido, da mesma loja primeiro. */
+export async function similarVehicles(v: { id: string; type: VehicleType; price: Prisma.Decimal; storeId: string }) {
+  const price = Number(v.price);
+  const candidates = await prisma.vehicle.findMany({
+    where: {
+      ...publicVehicleWhere,
+      id: { not: v.id },
+      type: v.type,
+      price: { gte: price * 0.6, lte: price * 1.4 },
+    },
+    take: 24,
+    select: { ...publicVehicleSelect, storeId: true },
   });
-  return rows;
+  return candidates
+    .map((c) => ({ c, score: Math.abs(Number(c.price) - price) / price - (c.storeId === v.storeId ? 0.15 : 0) }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 4)
+    .map(({ c }) => c);
+}
+
+/** Opcionais mais comuns no estoque publicado (para o filtro). */
+export async function publicFeatures() {
+  const rows = await prisma.vehicleFeature.groupBy({
+    by: ["name"],
+    where: { vehicle: publicVehicleWhere },
+    _count: { name: true },
+    orderBy: { _count: { name: "desc" } },
+    take: 25,
+  });
+  return rows.map((r) => r.name).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }

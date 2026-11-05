@@ -42,23 +42,29 @@ export const BR_STATES = [
   "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "SC", "SE", "SP", "RO", "RR", "TO",
 ] as const;
 
-export const COMMON_FEATURES = [
-  "Ar-condicionado",
-  "Direção hidráulica",
-  "Direção elétrica",
-  "Vidros elétricos",
-  "Travas elétricas",
-  "Alarme",
-  "Airbag",
-  "Freios ABS",
-  "Câmera de ré",
-  "Sensor de estacionamento",
-  "Central multimídia",
-  "Bancos de couro",
-  "Rodas de liga leve",
-  "Teto solar",
-  "Piloto automático",
-  "Único dono",
-  "IPVA pago",
-  "Revisões na concessionária",
-];
+/** Sugestões de opcionais por tipo (a loja pode acrescentar outros). */
+export const FEATURES_BY_TYPE: Record<"CAR" | "MOTORCYCLE" | "TRUCK" | "OTHER", string[]> = {
+  CAR: [
+    "Ar-condicionado", "Direção hidráulica", "Direção elétrica", "Vidros elétricos", "Travas elétricas",
+    "Alarme", "Airbag", "Freios ABS", "Câmera de ré", "Sensor de estacionamento", "Central multimídia",
+    "Bancos de couro", "Rodas de liga leve", "Teto solar", "Piloto automático", "Único dono", "IPVA pago",
+    "Revisões na concessionária", "Manual e chave reserva",
+  ],
+  MOTORCYCLE: [
+    "Freios ABS", "Partida elétrica", "Injeção eletrônica", "Freio a disco", "Painel digital", "Baú",
+    "Protetor de motor", "Único dono", "IPVA pago", "Revisões na concessionária", "Manual e chave reserva",
+  ],
+  TRUCK: [
+    "Ar-condicionado", "Direção hidráulica", "Freios ABS", "Freio motor", "Cabine leito", "Tacógrafo",
+    "Rastreador", "Único dono", "IPVA pago",
+  ],
+  OTHER: ["Único dono", "IPVA pago"],
+};
+
+export const watermarkPositionLabels = {
+  BOTTOM_RIGHT: "Canto inferior direito",
+  BOTTOM_LEFT: "Canto inferior esquerdo",
+  TOP_RIGHT: "Canto superior direito",
+  TOP_LEFT: "Canto superior esquerdo",
+  CENTER: "Centro",
+} as const;
