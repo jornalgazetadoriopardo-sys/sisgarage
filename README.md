@@ -120,5 +120,4 @@ storage/originals/        originais privados (não vai para o git)
 
 ## Próximas fases
 
-4. Financeiro (contas a pagar e a receber, fluxo de caixa), agendamentos e CRM
 5. Consulta por placa e Renavam, WhatsApp, postagem no Facebook/Instagram e cobrança das lojas
