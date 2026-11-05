@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle, BadgeDollarSign, CalendarClock, Camera, Car, ChevronRight, FileWarning, Hourglass,
+  AlertTriangle, BadgeDollarSign, CalendarClock, Camera, Car, ChevronRight, FileWarning, Gauge, Hourglass,
   MessageSquare, PiggyBank, Plus, Receipt, Sparkles, TrendingUp, Wallet,
 } from "lucide-react";
 import { canSeeFinance, requireStoreUser } from "@/lib/auth";
@@ -125,7 +125,7 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
             {[
               { href: "/painel/veiculos/novo", icon: Plus, label: "Cadastrar veículo" },
               { href: "/painel/veiculos?status=PREPARING", icon: Receipt, label: "Em preparação" },
-              { href: "/painel/contatos", icon: MessageSquare, label: "Contatos" },
+              { href: "/painel/fipe", icon: Gauge, label: "Tabela FIPE" },
               ...(store.status === "ACTIVE" ? [{ href: `/lojas/${store.slug}`, icon: Car, label: "Ver vitrine" }] : []),
             ].map((a) => (
               <Link key={a.href} href={a.href} className="flex flex-col items-start gap-3 rounded-xl border border-slate-100 p-4 transition hover:border-brand-200 hover:bg-brand-50/50">

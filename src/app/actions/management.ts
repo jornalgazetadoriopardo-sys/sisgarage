@@ -256,3 +256,14 @@ export async function refreshFipe(vehicleId: string): Promise<ActionState> {
     return { error: e instanceof Error ? e.message : "Falha na consulta FIPE." };
   }
 }
+
+/** Consulta avulsa (página "Tabela FIPE"), sem vincular a um veículo. */
+export async function consultFipe(kind: string, brand: string, model: string, year: string) {
+  await requireStoreUser();
+  if (!isFipeKind(kind)) return { error: "Tipo inválido." } as const;
+  try {
+    return { price: await fipePrice(kind, brand, model, year) } as const;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Falha na consulta FIPE." } as const;
+  }
+}
