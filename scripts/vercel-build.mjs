@@ -2,6 +2,7 @@
 // - Produção: confere as variáveis, aplica as migrações no banco e cria o administrador.
 // - Preview (pull requests): só compila, sem mexer no banco de produção.
 import { execSync } from "node:child_process";
+import { normalizeDatabaseUrl } from "../src/lib/database-url.mjs";
 
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 const env = process.env.VERCEL_ENV || "development";
@@ -20,6 +21,11 @@ if (env === "production") {
   if ((process.env.AUTH_SECRET || "").length < 32) {
     console.error("\n✖ AUTH_SECRET muito curto: use 32 caracteres ou mais.\n");
     process.exit(1);
+  }
+  const fixed = normalizeDatabaseUrl(process.env.DATABASE_URL);
+  if (fixed !== process.env.DATABASE_URL) {
+    console.warn("⚠ DATABASE_URL do TiDB sem \"?sslaccept=strict\": acrescentado automaticamente.");
+    process.env.DATABASE_URL = fixed;
   }
   let dbName = "";
   try {
