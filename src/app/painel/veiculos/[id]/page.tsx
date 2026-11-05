@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Camera, ClipboardList, ExternalLink, Megaphone, Trash2 } from "lucide-react";
+import { Camera, ClipboardList, ExternalLink, Handshake, Megaphone, ReceiptText, Trash2 } from "lucide-react";
 import { requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { plateLookupEnabled } from "@/lib/plate-lookup";
@@ -47,9 +47,12 @@ export default async function EditVehiclePage({
     include: {
       photos: { orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, url: true, thumbUrl: true } },
       features: { select: { name: true } },
+      sales: { where: { status: { not: "CANCELED" } }, select: { id: true, number: true, status: true }, take: 1 },
+      _count: { select: { sales: true } },
     },
   });
   if (!vehicle) notFound();
+  const activeSale = vehicle.sales[0];
   const { photos, features } = vehicle;
   const isPublic = vehicle.published && ["AVAILABLE", "RESERVED"].includes(vehicle.status) && store.status === "ACTIVE";
 
@@ -74,11 +77,24 @@ export default async function EditVehiclePage({
             {vehicle.plate && <span className="font-mono">{vehicle.plate}</span>}
           </span>
         }
-        actions={isPublic ? (
-          <Link href={vehiclePath(vehicle)} target="_blank" className="btn-secondary">
-            <ExternalLink className="h-4 w-4" /> Ver no site
-          </Link>
-        ) : undefined}
+        actions={
+          <>
+            {activeSale ? (
+              <Link href={`/painel/vendas/${activeSale.id}`} className="btn-secondary">
+                <ReceiptText className="h-4 w-4" /> {activeSale.status === "RESERVED" ? "Reserva" : "Venda"} nº {activeSale.number}
+              </Link>
+            ) : (
+              <Link href={`/painel/vendas/nova?veiculo=${vehicle.id}`} className="btn-primary">
+                <Handshake className="h-4 w-4" /> Registrar venda
+              </Link>
+            )}
+            {isPublic && (
+              <Link href={vehiclePath(vehicle)} target="_blank" className="btn-secondary">
+                <ExternalLink className="h-4 w-4" /> Ver no site
+              </Link>
+            )}
+          </>
+        }
       />
 
       {salvo && <p className="mb-6 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Veículo cadastrado. Agora você pode completar as fotos e a gestão.</p>}
@@ -125,12 +141,16 @@ export default async function EditVehiclePage({
             plateLookupEnabled={plateLookupEnabled()}
             storeFeatures={await storeFeatureNames(storeId)}
           />
-          <Section icon={Trash2} tone="red" title="Excluir veículo" description="Remove o veículo, as fotos, a gestão e o vínculo com os contatos. Não pode ser desfeito.">
-            <form action={deleteVehicle}>
-              <input type="hidden" name="id" value={vehicle.id} />
-              <ConfirmButton message="Excluir este veículo definitivamente?" className="btn-danger">Excluir veículo</ConfirmButton>
-            </form>
-          </Section>
+          {vehicle._count.sales === 0 ? (
+            <Section icon={Trash2} tone="red" title="Excluir veículo" description="Remove o veículo, as fotos, a gestão e o vínculo com os contatos. Não pode ser desfeito.">
+              <form action={deleteVehicle}>
+                <input type="hidden" name="id" value={vehicle.id} />
+                <ConfirmButton message="Excluir este veículo definitivamente?" className="btn-danger">Excluir veículo</ConfirmButton>
+              </form>
+            </Section>
+          ) : (
+            <p className="text-sm text-slate-500">Este veículo tem venda registrada e não pode ser excluído. Para tirá-lo do site, desmarque “Publicar no site”.</p>
+          )}
         </div>
       )}
     </div>

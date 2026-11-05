@@ -225,8 +225,8 @@ export async function deleteVehicle(formData: FormData) {
   const ctx = await requireStoreUser();
   const { storeId } = ctx;
   const id = String(formData.get("id") ?? "");
-  const vehicle = await prisma.vehicle.findFirst({ where: { id, storeId }, include: { photos: true } });
-  if (!vehicle) return;
+  const vehicle = await prisma.vehicle.findFirst({ where: { id, storeId }, include: { photos: true, _count: { select: { sales: true } } } });
+  if (!vehicle || vehicle._count.sales > 0) return; // veículo com venda registrada não pode ser excluído
   const docs = await prisma.vehicle.findUnique({
     where: { id },
     select: { expenses: { select: { fileRef: true } }, documents: { select: { fileRef: true } }, taxes: { select: { fileRef: true } } },

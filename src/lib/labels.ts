@@ -118,3 +118,21 @@ export const taxKindLabels = {
   FINE: "Multa",
   OTHER: "Outro débito",
 } as const;
+
+export const saleStatusLabels = {
+  RESERVED: "Reservado (sinal pago)",
+  COMPLETED: "Concluída",
+  CANCELED: "Cancelada",
+} as const;
+
+export const paymentMethodLabels = {
+  PIX: "PIX",
+  CASH: "Dinheiro",
+  TRANSFER: "Transferência/TED",
+  DEBIT_CARD: "Cartão de débito",
+  CREDIT_CARD: "Cartão de crédito",
+  FINANCING: "Financiamento",
+  TRADE_IN: "Veículo na troca",
+  PROMISSORY: "Promissória/parcelado",
+  OTHER: "Outro",
+} as const;

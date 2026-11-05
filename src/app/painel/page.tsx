@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle, BadgeDollarSign, CalendarClock, Camera, Car, ChevronRight, FileWarning, Gauge, Hourglass,
-  MessageSquare, PiggyBank, Plus, Receipt, Sparkles, TrendingUp, Wallet,
+  AlertTriangle, BadgeDollarSign, CalendarClock, Camera, Car, ChevronRight, FileWarning, Gauge, Handshake, Hourglass,
+  MessageSquare, PiggyBank, Plus, Sparkles, TrendingUp, Wallet,
 } from "lucide-react";
 import { canSeeFinance, requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -24,7 +24,8 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
   const in30 = new Date(today.getTime() + 30 * 86_400_000);
   const weekAgo = new Date(Date.now() - 7 * 86_400_000);
 
-  const [stock, unreadLeads, newLeads, leads] = await Promise.all([
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const [stock, unreadLeads, newLeads, leads, monthSales, reservations, overdueInstallments] = await Promise.all([
     prisma.vehicle.findMany({
       where: { storeId, status: { not: "SOLD" } },
       select: {
@@ -44,7 +45,18 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
       take: 5,
       include: { vehicle: { select: { brand: true, model: true, version: true } } },
     }),
+    prisma.sale.findMany({
+      where: { storeId, status: "COMPLETED", date: { gte: monthStart } },
+      select: { price: true, commission: true, vehicle: { select: { purchasePrice: true, fipeValue: true, expenses: { select: { amount: true } }, taxes: { select: { amount: true, paidAt: true } } } } },
+    }),
+    prisma.sale.findMany({ where: { storeId, status: "RESERVED" }, select: { id: true } }),
+    prisma.salePayment.findMany({
+      where: { paidAt: null, dueDate: { lt: today }, sale: { storeId, status: { not: "CANCELED" } } },
+      select: { saleId: true },
+    }),
   ]);
+  const monthRevenue = monthSales.reduce((s, x) => s + Number(x.price), 0);
+  const monthProfit = monthSales.reduce((s, x) => s + vehicleFinance({ ...x.vehicle, price: x.price }).profit - Number(x.commission ?? 0), 0);
 
   const forSale = stock.filter((v) => v.status === "AVAILABLE" || v.status === "RESERVED");
   const fin = stock.map((v) => ({ v, f: vehicleFinance(v) }));
@@ -63,6 +75,11 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
   const first = (list: typeof stock, tab = "") => (list.length === 1 ? `/painel/veiculos/${list[0].id}${tab}` : "/painel/veiculos");
   const alerts: Alert[] = [];
   if (overdue.length) alerts.push({ icon: AlertTriangle, tone: "red", title: `${overdue.length} débito(s) vencido(s)`, text: "IPVA, licenciamento ou multas com vencimento passado.", href: first([...new Set(overdue)], "?aba=gestao") });
+  if (overdueInstallments.length) {
+    const ids = [...new Set(overdueInstallments.map((p) => p.saleId))];
+    alerts.push({ icon: AlertTriangle, tone: "red", title: `${overdueInstallments.length} parcela(s) de venda atrasada(s)`, text: "Financiamentos ou promissórias com vencimento passado.", href: ids.length === 1 ? `/painel/vendas/${ids[0]}` : "/painel/vendas" });
+  }
+  if (reservations.length) alerts.push({ icon: CalendarClock, tone: "amber", title: `${reservations.length} reserva(s) aguardando conclusão`, text: "Clientes que pagaram sinal. Conclua a venda quando fechar.", href: reservations.length === 1 ? `/painel/vendas/${reservations[0].id}` : "/painel/vendas?status=RESERVED" });
   if (unreadLeads) alerts.push({ icon: MessageSquare, tone: "blue", title: `${unreadLeads} contato(s) sem resposta`, text: "Compradores aguardando retorno.", href: "/painel/contatos" });
   if (dueSoon.length) alerts.push({ icon: CalendarClock, tone: "amber", title: `${dueSoon.length} débito(s) vencem em 30 dias`, text: "Programe o pagamento para não perder o prazo.", href: first([...new Set(dueSoon)], "?aba=gestao") });
   if (docsExpiring.length) alerts.push({ icon: FileWarning, tone: "amber", title: `${docsExpiring.length} veículo(s) com documento vencendo`, text: "Laudos ou vistorias perto do vencimento.", href: first(docsExpiring, "?aba=gestao") });
@@ -85,14 +102,17 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
       {/* Números principais */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard icon={Car} label="À venda" value={forSale.length} hint={`${stock.length - forSale.length} em preparação`} href="/painel/veiculos" />
-        <StatCard icon={MessageSquare} tone="green" label="Contatos (7 dias)" value={newLeads} hint={unreadLeads ? `${unreadLeads} sem resposta` : "Todos respondidos"} href="/painel/contatos" />
+        <StatCard icon={Handshake} tone="green" label={`Vendas em ${today.toLocaleDateString("pt-BR", { month: "long", timeZone: "UTC" })}`} value={monthSales.length} hint={formatMoney(monthRevenue)} href="/painel/vendas" />
         {finance ? (
           <>
+            <StatCard icon={TrendingUp} tone={monthProfit >= 0 ? "green" : "red"} label="Lucro do mês" value={formatMoney(monthProfit)} hint={`Previsto no estoque: ${formatMoney(expectedProfit)}`} href="/painel/vendas" />
             <StatCard icon={Wallet} tone="violet" label="Investido no estoque" value={formatMoney(invested)} hint="Compra + gastos + débitos" />
-            <StatCard icon={TrendingUp} tone={expectedProfit >= 0 ? "green" : "red"} label="Lucro previsto" value={formatMoney(expectedProfit)} hint="Veículos com custo lançado" />
           </>
         ) : (
-          <StatCard icon={BadgeDollarSign} tone="violet" label="Valor do estoque à venda" value={formatMoney(stockValue)} />
+          <>
+            <StatCard icon={MessageSquare} tone="green" label="Contatos (7 dias)" value={newLeads} hint={unreadLeads ? `${unreadLeads} sem resposta` : "Todos respondidos"} href="/painel/contatos" />
+            <StatCard icon={BadgeDollarSign} tone="violet" label="Valor do estoque à venda" value={formatMoney(stockValue)} />
+          </>
         )}
       </div>
 
@@ -124,7 +144,7 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
           <div className="grid grid-cols-2 gap-3">
             {[
               { href: "/painel/veiculos/novo", icon: Plus, label: "Cadastrar veículo" },
-              { href: "/painel/veiculos?status=PREPARING", icon: Receipt, label: "Em preparação" },
+              { href: "/painel/vendas/nova", icon: Handshake, label: "Registrar venda" },
               { href: "/painel/fipe", icon: Gauge, label: "Tabela FIPE" },
               ...(store.status === "ACTIVE" ? [{ href: `/lojas/${store.slug}`, icon: Car, label: "Ver vitrine" }] : []),
             ].map((a) => (

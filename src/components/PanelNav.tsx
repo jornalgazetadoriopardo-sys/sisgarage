@@ -3,11 +3,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Building2, Car, Gauge, Home, KeyRound, Menu, MessageSquare, Plus, Store, Users, X,
+  Building2, Car, Gauge, Home, KeyRound, Menu, ReceiptText, UserRound, MessageSquare, Plus, Store, Users, X,
   type LucideIcon,
 } from "lucide-react";
 
-const ICONS = { home: Home, car: Car, message: MessageSquare, store: Store, users: Users, key: KeyRound, building: Building2, gauge: Gauge } satisfies Record<string, LucideIcon>;
+const ICONS = { home: Home, car: Car, message: MessageSquare, store: Store, users: Users, key: KeyRound, building: Building2, gauge: Gauge, receipt: ReceiptText, customer: UserRound } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 export type NavItem = { href: string; label: string; icon: NavIcon; badge?: number; group?: string };
 

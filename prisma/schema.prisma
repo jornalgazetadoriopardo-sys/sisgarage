@@ -101,6 +101,24 @@ enum TaxKind {
   OTHER
 }
 
+enum SaleStatus {
+  RESERVED // sinal pago, veículo reservado
+  COMPLETED // venda concluída
+  CANCELED
+}
+
+enum PaymentMethod {
+  PIX
+  CASH
+  TRANSFER
+  DEBIT_CARD
+  CREDIT_CARD
+  FINANCING
+  TRADE_IN
+  PROMISSORY
+  OTHER
+}
+
 enum WatermarkPosition {
   BOTTOM_RIGHT
   BOTTOM_LEFT
@@ -141,6 +159,7 @@ model Store {
   name         String      @db.VarChar(100)
   slug         String      @unique @db.VarChar(120)
   cnpj         String?     @unique @db.VarChar(14)
+  legalName    String?     @db.VarChar(150) // razão social (documentos)
   email        String      @db.VarChar(191)
   phone        String?     @db.VarChar(20)
   whatsapp     String?     @db.VarChar(20)
@@ -164,9 +183,11 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users    User[]
-  vehicles Vehicle[]
-  leads    Lead[]
+  users     User[]
+  vehicles  Vehicle[]
+  leads     Lead[]
+  customers Customer[]
+  sales     Sale[]
 
   @@index([status])
   @@index([city, state])
@@ -228,6 +249,8 @@ model Vehicle {
   documents   VehicleDocument[]
   taxes       VehicleTax[]
   fipeHistory FipeHistory[]
+  sales       Sale[]        @relation("SaleVehicle")
+  tradeInFor  Sale[]        @relation("SaleTradeIn")
 
   @@unique([storeId, plate])
   @@index([published, status])
@@ -359,4 +382,76 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([storeId, createdAt])
+}
+
+/// Clientes da loja (compradores)
+model Customer {
+  id        String    @id @default(cuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String    @db.VarChar(120)
+  document  String?   @db.VarChar(14) // CPF ou CNPJ (só números)
+  rg        String?   @db.VarChar(20)
+  birthDate DateTime? @db.Date
+  phone     String?   @db.VarChar(20)
+  email     String?   @db.VarChar(191)
+  zipCode   String?   @db.VarChar(8)
+  address   String?   @db.VarChar(200) // rua e número
+  district  String?   @db.VarChar(80)
+  city      String?   @db.VarChar(80)
+  state     String?   @db.Char(2)
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sales Sale[]
+
+  @@unique([storeId, document])
+  @@index([storeId, name])
+}
+
+/// Venda (ou reserva com sinal) de um veículo
+model Sale {
+  id               String     @id @default(cuid())
+  number           Int // número sequencial por loja
+  storeId          String
+  store            Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  vehicleId        String
+  vehicle          Vehicle    @relation("SaleVehicle", fields: [vehicleId], references: [id], onDelete: Restrict)
+  customerId       String
+  customer         Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sellerId         String?
+  sellerName       String     @db.VarChar(100)
+  status           SaleStatus @default(COMPLETED)
+  date             DateTime   @db.Date
+  price            Decimal    @db.Decimal(12, 2) // valor final negociado
+  commission       Decimal?   @db.Decimal(12, 2)
+  warrantyDays     Int        @default(90)
+  mileageAtSale    Int?
+  notes            String?    @db.Text // condições adicionais (saem no contrato)
+  tradeInVehicleId String?
+  tradeInVehicle   Vehicle?   @relation("SaleTradeIn", fields: [tradeInVehicleId], references: [id], onDelete: SetNull)
+  canceledAt       DateTime?
+  cancelReason     String?    @db.VarChar(255)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  payments SalePayment[]
+
+  @@unique([storeId, number])
+  @@index([storeId, date])
+  @@index([vehicleId])
+}
+
+model SalePayment {
+  id      String        @id @default(cuid())
+  saleId  String
+  sale    Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  method  PaymentMethod
+  amount  Decimal       @db.Decimal(12, 2)
+  details String?       @db.VarChar(200) // banco, nº de parcelas, veículo da troca...
+  dueDate DateTime?     @db.Date
+  paidAt  DateTime?     @db.Date
+
+  @@index([saleId])
 }
