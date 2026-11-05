@@ -9,8 +9,9 @@
  */
 import { PrismaClient, type Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { normalizeDatabaseUrl } from "../src/lib/database-url.mjs";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: normalizeDatabaseUrl(process.env.DATABASE_URL) });
 const withDemo = process.argv.includes("--demo") || process.env.SEED_DEMO === "1";
 
 async function main() {
