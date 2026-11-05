@@ -82,6 +82,8 @@ O código está no branch `claude/vehicle-registration-system-kd97c4`, e a Verce
 
 ## Atualizações
 
+> Publicações de **pull request (Preview)** só compilam o código: não alteram o banco. As tabelas são atualizadas apenas na publicação de **produção** (branch `main`).
+
 Cada vez que o código for atualizado no `main` do GitHub, a Vercel publica sozinha. As mudanças no banco (migrações) são aplicadas automaticamente nesse processo.
 
 ## Limites do plano grátis (confira os valores atuais nos sites)
@@ -95,6 +97,7 @@ Cada vez que o código for atualizado no `main` do GitHub, a Vercel publica sozi
 
 | Sintoma | Causa provável |
 |---|---|
+| Log mostra "Faltam variáveis de ambiente" | Cadastre as variáveis listadas no ambiente **Production** e faça Redeploy |
 | Deploy falha em `prisma migrate deploy` | `DATABASE_URL` errado, sem `?sslaccept=strict` ou banco `sisgarage` inexistente |
 | "Armazenamento de fotos não configurado" ao enviar fotos | Passo 3 não feito, ou faltou o Redeploy depois dele |
 | Login não funciona | `AUTH_SECRET` ausente ou curto (mínimo 16; use 32+) |

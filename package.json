@@ -15,7 +15,7 @@
     "db:studio": "prisma studio",
     "db:seed:demo": "tsx --env-file=.env prisma/seed.ts --demo",
     "setup": "prisma migrate deploy && prisma generate && tsx --env-file=.env prisma/seed.ts --demo",
-    "vercel-build": "prisma generate && prisma migrate deploy && tsx prisma/seed.ts && next build",
+    "vercel-build": "prisma generate && node scripts/vercel-build.mjs",
     "postinstall": "prisma generate"
   },
   "prisma": {
