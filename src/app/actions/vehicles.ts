@@ -127,6 +127,7 @@ export async function createVehicle(_prev: ActionState, formData: FormData): Pro
       storeId,
       position: (first?.position ?? 1) - 1,
       features: { create: result.features.map((name) => ({ name })) },
+      priceHistory: { create: { price: result.data.price, userName: ctx.user.name } },
     },
   });
   await audit(ctx, "veiculo.criado", "vehicle", vehicle.id, `${vehicle.brand} ${vehicle.model}`);
@@ -139,7 +140,7 @@ export async function updateVehicle(_prev: ActionState, formData: FormData): Pro
   const ctx = await requireStoreUser();
   const { storeId } = ctx;
   const id = String(formData.get("id") ?? "");
-  const existing = await prisma.vehicle.findFirst({ where: { id, storeId }, select: { id: true } });
+  const existing = await prisma.vehicle.findFirst({ where: { id, storeId }, select: { id: true, price: true } });
   if (!existing) return { error: "Veículo não encontrado." };
 
   const result = parseVehicle(formData);
@@ -149,9 +150,14 @@ export async function updateVehicle(_prev: ActionState, formData: FormData): Pro
   }
   const vehicle = await prisma.$transaction(async (tx) => {
     await tx.vehicleFeature.deleteMany({ where: { vehicleId: id } });
+    const priceChanged = Math.round(Number(existing.price) * 100) !== Math.round(result.data.price * 100);
     return tx.vehicle.update({
       where: { id },
-      data: { ...result.data, features: { create: result.features.map((name) => ({ name })) } },
+      data: {
+        ...result.data,
+        features: { create: result.features.map((name) => ({ name })) },
+        ...(priceChanged ? { priceHistory: { create: { price: result.data.price, userName: ctx.user.name } } } : {}),
+      },
     });
   });
   await audit(ctx, "veiculo.alterado", "vehicle", id);

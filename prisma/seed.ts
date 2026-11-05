@@ -92,6 +92,7 @@ async function main() {
           storeId: store.id,
           position,
           features: { create: opcionais.map((name) => ({ name })) },
+          priceHistory: { create: { price: v.price, userName: "Cadastro" } },
         },
       });
     }

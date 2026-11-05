@@ -67,6 +67,15 @@ Plataforma para lojas de veículos. Cada loja cadastra o estoque, que aparece nu
   conversas; data de retorno e responsável; contatos manuais (WhatsApp, telefone, loja, Instagram)
 - Início mostra a agenda do dia e alerta contas vencidas, pedidos de agendamento e retornos
 
+**Ficha, estoque e redes sociais**
+- Ficha do veículo (aba "Ficha" + PDF): dias na loja, histórico de preço, oscilação da FIPE, preço × FIPE,
+  interesse (visitas, contatos, agendamentos), documentação, débitos, custos e lucro (só dono) e linha do tempo
+- Controle de estoque: tempo na loja por faixa (até 30, 60, 90, +90 dias), tempo médio para vender,
+  ordenação por tempo, preço, FIPE, oscilação, margem e visitas; exportação para planilha (CSV)
+- Posts para redes sociais: modelos de veículo (destaque, oferta, acabou de chegar, ficha técnica, vendido)
+  e institucionais (aviso, horário, troca, financiamento, colagem do estoque), nos formatos feed quadrado,
+  feed retrato e story, com cor e logo da loja; legenda pronta com hashtags; baixar ou compartilhar
+
 **Painel master** (`/admin`)
 - Aprovar, suspender e reativar lojas
 - "Acessar painel" de qualquer loja, com faixa de aviso e registro no histórico

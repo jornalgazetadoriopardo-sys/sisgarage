@@ -19,12 +19,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const nav: NavItem[] = [
     { href: "/painel", label: "Início", icon: "home", group: "Loja" },
     { href: "/painel/veiculos", label: "Veículos", icon: "car", group: "Loja" },
+    { href: "/painel/estoque", label: "Controle de estoque", icon: "boxes", group: "Loja" },
     { href: "/painel/agenda", label: "Agenda", icon: "calendar", badge: requests, group: "Loja" },
     { href: "/painel/contatos", label: "Contatos", icon: "message", badge: unread, group: "Loja" },
     { href: "/painel/vendas", label: "Vendas", icon: "receipt", group: "Loja" },
     { href: "/painel/clientes", label: "Clientes", icon: "customer", group: "Loja" },
     ...(isOwner ? ([{ href: "/painel/financeiro", label: "Financeiro", icon: "wallet", group: "Loja" }] satisfies NavItem[]) : []),
     { href: "/painel/fipe", label: "Tabela FIPE", icon: "gauge", group: "Loja" },
+    { href: "/painel/social", label: "Posts e redes sociais", icon: "megaphone", group: "Loja" },
     ...(isOwner
       ? ([
           { href: "/painel/loja", label: "Dados da loja", icon: "store", group: "Configurações" },

@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Camera, ClipboardList, ExternalLink, Handshake, Megaphone, ReceiptText, Trash2 } from "lucide-react";
+import { Camera, ClipboardList, ExternalLink, FileBarChart, Handshake, Megaphone, ReceiptText, Trash2 } from "lucide-react";
 import { requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { plateLookupEnabled } from "@/lib/plate-lookup";
@@ -13,12 +13,15 @@ import { VehicleForm } from "@/components/VehicleForm";
 import { PhotoManager } from "@/components/PhotoManager";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { GestaoTab } from "@/components/gestao/GestaoTab";
+import { FichaTab } from "@/components/ficha/FichaTab";
+import { loadVehicleReport } from "@/lib/vehicle-report";
 import { PageHeader, Section } from "@/components/ui";
 
 const TABS = [
   { key: "anuncio", label: "Anúncio", icon: Megaphone },
   { key: "fotos", label: "Fotos", icon: Camera },
   { key: "gestao", label: "Gestão", icon: ClipboardList },
+  { key: "ficha", label: "Ficha", icon: FileBarChart },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -101,19 +104,19 @@ export default async function EditVehiclePage({
       {falhas && <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{falhas} foto(s) não puderam ser enviadas. Tente de novo na aba Fotos.</p>}
 
       {/* Abas */}
-      <nav className="mb-8 flex gap-1 overflow-x-auto rounded-2xl bg-slate-200/60 p-1" aria-label="Seções do veículo">
+      <nav className="mb-8 grid grid-cols-4 gap-1 rounded-2xl bg-slate-200/60 p-1" aria-label="Seções do veículo">
         {TABS.map((t) => (
           <Link
             key={t.key}
             href={`/painel/veiculos/${id}${t.key === "anuncio" ? "" : `?aba=${t.key}`}`}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+            className={`flex flex-1 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-semibold transition sm:flex-row sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm ${
               tab === t.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
             }`}
             aria-current={tab === t.key ? "page" : undefined}
           >
             <t.icon className="h-4 w-4" />
             {t.label}
-            {t.key === "fotos" && <span className="text-xs font-normal text-slate-400">{photos.length}</span>}
+            {t.key === "fotos" && <span className="hidden text-xs font-normal text-slate-400 sm:inline">{photos.length}</span>}
           </Link>
         ))}
       </nav>
@@ -123,6 +126,8 @@ export default async function EditVehiclePage({
       )}
 
       {tab === "gestao" && <GestaoTab ctx={ctx} vehicleId={vehicle.id} />}
+
+      {tab === "ficha" && <FichaTab ctx={ctx} report={(await loadVehicleReport(storeId, vehicle.id))!} />}
 
       {tab === "anuncio" && (
         <div className="space-y-8">
