@@ -28,6 +28,15 @@ export function StoreForm({ store }: { store: Store }) {
           <FieldError state={state} name="name" />
         </div>
         <div>
+          <label className="label" htmlFor="legalName">Razão social (sai nos contratos)</label>
+          <input id="legalName" name="legalName" defaultValue={store.legalName ?? ""} className="input" placeholder="Ex.: Garagem Demo Comércio de Veículos Ltda" />
+        </div>
+        <div>
+          <label className="label" htmlFor="cnpj">CNPJ</label>
+          <input id="cnpj" name="cnpj" defaultValue={store.cnpj ?? ""} inputMode="numeric" className="input" />
+          <FieldError state={state} name="cnpj" />
+        </div>
+        <div>
           <label className="label" htmlFor="email">E-mail</label>
           <input id="email" name="email" type="email" required defaultValue={store.email} className="input" />
           <FieldError state={state} name="email" />

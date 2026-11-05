@@ -4,6 +4,7 @@ import { requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatPhone, vehicleTitle, whatsappLink } from "@/lib/format";
 import { markLeadRead } from "@/app/actions/store";
+import { customerFromLead } from "@/app/actions/customers";
 import { EmptyState, PageHeader } from "@/components/ui";
 
 export default async function LeadsPage() {
@@ -49,6 +50,10 @@ export default async function LeadsPage() {
                     href={whatsappLink(l.phone, `Olá ${l.name.split(" ")[0]}, aqui é da loja. Recebemos seu contato pelo SisGarage.`)}>
                     Responder no WhatsApp
                   </a>
+                  <form action={customerFromLead}>
+                    <input type="hidden" name="id" value={l.id} />
+                    <button className="btn-secondary">Cadastrar como cliente</button>
+                  </form>
                   <form action={markLeadRead}>
                     <input type="hidden" name="id" value={l.id} />
                     <input type="hidden" name="read" value={String(!l.read)} />

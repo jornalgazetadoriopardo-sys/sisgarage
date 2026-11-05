@@ -16,7 +16,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const nav: NavItem[] = [
     { href: "/painel", label: "Início", icon: "home", group: "Loja" },
     { href: "/painel/veiculos", label: "Veículos", icon: "car", group: "Loja" },
+    { href: "/painel/vendas", label: "Vendas", icon: "receipt", group: "Loja" },
     { href: "/painel/contatos", label: "Contatos", icon: "message", badge: unread, group: "Loja" },
+    { href: "/painel/clientes", label: "Clientes", icon: "customer", group: "Loja" },
     { href: "/painel/fipe", label: "Tabela FIPE", icon: "gauge", group: "Loja" },
     ...(isOwner
       ? ([
@@ -64,7 +66,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <PanelShell
       nav={nav}
-      primary={["/painel", "/painel/veiculos", "/painel/contatos"]}
+      primary={["/painel", "/painel/veiculos", "/painel/vendas", "/painel/contatos"]}
       newHref="/painel/veiculos/novo"
       title={store.name}
       subtitle={`${store.city}/${store.state}`}

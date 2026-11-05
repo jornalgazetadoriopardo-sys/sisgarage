@@ -316,3 +316,8 @@ export async function readPrivateFile(ref: string) {
 export async function deletePrivateFile(ref: string | null | undefined) {
   await deleteOriginal(ref);
 }
+
+/** Lê um arquivo público (logo, por exemplo) pelo endereço salvo no banco. */
+export async function readPublicFile(url: string) {
+  return readPublic(url);
+}

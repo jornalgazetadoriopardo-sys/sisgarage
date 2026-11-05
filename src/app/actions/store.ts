@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { hashPassword, requireStoreOwner, requireStoreUser } from "@/lib/auth";
 import { normalizeInstagram, onlyDigits } from "@/lib/format";
+import { isValidCnpj } from "@/lib/br-docs";
 import { BR_STATES } from "@/lib/labels";
 import { deletePublic, rerenderVehiclePhoto, saveLogo, saveWatermarkImage, UploadError } from "@/lib/storage";
 import { watermarkOf } from "@/lib/watermark";
@@ -11,6 +12,12 @@ import { zodErrors, type ActionState } from "@/lib/action-state";
 
 const storeSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome").max(100),
+  legalName: z.string().trim().max(150).optional(),
+  cnpj: z
+    .string()
+    .optional()
+    .transform((v) => onlyDigits(v ?? ""))
+    .refine((v) => v === "" || isValidCnpj(v), "CNPJ inválido"),
   email: z.string().trim().toLowerCase().email("E-mail inválido"),
   phone: z.string().trim().max(20).optional(),
   whatsapp: z.string().trim().max(20).optional(),
@@ -42,10 +49,16 @@ export async function updateStore(_prev: ActionState, formData: FormData): Promi
     await deletePublic(store.logoUrl);
   }
 
+  if (d.cnpj) {
+    const dup = await prisma.store.findFirst({ where: { cnpj: d.cnpj, NOT: { id: storeId } }, select: { id: true } });
+    if (dup) return { error: "Este CNPJ já está cadastrado em outra loja.", fieldErrors: { cnpj: "CNPJ já cadastrado" } };
+  }
   await prisma.store.update({
     where: { id: storeId },
     data: {
       name: d.name,
+      legalName: d.legalName || null,
+      cnpj: d.cnpj || null,
       email: d.email,
       phone: d.phone || null,
       whatsapp: d.whatsapp || null,

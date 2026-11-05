@@ -45,6 +45,17 @@ Plataforma para lojas de veículos. Cada loja cadastra o estoque, que aparece nu
 - Arquivos privados: só abrem com login da loja dona do veículo
 - Histórico de alterações (quem fez o quê, inclusive o admin)
 
+**Vendas e clientes (fase 3)**
+- Clientes com CPF/CNPJ validado e endereço preenchido pelo CEP; contato do site vira cliente com um toque
+- Venda direta ou reserva com sinal; várias formas de pagamento (PIX, dinheiro, cartão, financiamento, promissória, troca)
+- Veículo da troca entra no estoque automaticamente, com o valor da troca como custo
+- Parcelas a receber com vencimento, alerta de atraso e "marcar recebido"
+- Lucro real da venda (custo + comissão) e resumo do mês, só para o dono
+- Documentos em PDF com logo, razão social e CNPJ da loja: recibo de sinal, recibo de pagamento,
+  contrato de compra e venda e termo de garantia, com valores por extenso. No celular, o botão de
+  compartilhar envia direto pelo WhatsApp
+- Cancelamento com motivo (o veículo volta ao estoque)
+
 **Painel master** (`/admin`)
 - Aprovar, suspender e reativar lojas
 - "Acessar painel" de qualquer loja, com faixa de aviso e registro no histórico
@@ -98,6 +109,5 @@ storage/originals/        originais privados (não vai para o git)
 
 ## Próximas fases
 
-3. Clientes, vendas, recibos e contratos em PDF
 4. Financeiro (contas a pagar e a receber, fluxo de caixa), agendamentos e CRM
 5. Consulta por placa e Renavam, WhatsApp, postagem no Facebook/Instagram e cobrança das lojas
