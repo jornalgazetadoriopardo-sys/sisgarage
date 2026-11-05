@@ -5,8 +5,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireStoreUser } from "@/lib/auth";
 import { isValidPlate, normalizePlate, onlyDigits, vehiclePath } from "@/lib/format";
-import { deleteVehiclePhotoFiles, saveVehiclePhoto, UploadError } from "@/lib/storage";
+import { deletePrivateFile, deleteVehiclePhotoFiles, saveVehiclePhoto, UploadError } from "@/lib/storage";
 import { watermarkOf } from "@/lib/watermark";
+import { audit } from "@/lib/audit";
 import { lookupPlate, type PlateLookupResponse } from "@/lib/plate-lookup";
 import { zodErrors, type ActionState } from "@/lib/action-state";
 
@@ -111,7 +112,8 @@ function revalidateVehicle(v: { id: string; brand: string; model: string; versio
 }
 
 export async function createVehicle(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { storeId } = await requireStoreUser();
+  const ctx = await requireStoreUser();
+  const { storeId } = ctx;
   const result = parseVehicle(formData);
   if ("error" in result) return result.error!;
   if (await plateTaken(storeId, result.data.plate)) {
@@ -127,13 +129,15 @@ export async function createVehicle(_prev: ActionState, formData: FormData): Pro
       features: { create: result.features.map((name) => ({ name })) },
     },
   });
+  await audit(ctx, "veiculo.criado", "vehicle", vehicle.id, `${vehicle.brand} ${vehicle.model}`);
   revalidatePath("/painel/veiculos");
   // As fotos são enviadas em seguida pelo navegador, uma a uma (com progresso).
   return { id: vehicle.id, message: "Veículo cadastrado." };
 }
 
 export async function updateVehicle(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { storeId } = await requireStoreUser();
+  const ctx = await requireStoreUser();
+  const { storeId } = ctx;
   const id = String(formData.get("id") ?? "");
   const existing = await prisma.vehicle.findFirst({ where: { id, storeId }, select: { id: true } });
   if (!existing) return { error: "Veículo não encontrado." };
@@ -150,6 +154,7 @@ export async function updateVehicle(_prev: ActionState, formData: FormData): Pro
       data: { ...result.data, features: { create: result.features.map((name) => ({ name })) } },
     });
   });
+  await audit(ctx, "veiculo.alterado", "vehicle", id);
   revalidateVehicle(vehicle);
   return { message: "Alterações salvas." };
 }
@@ -217,12 +222,21 @@ export async function reorderVehicles(vehicleIds: string[]) {
 }
 
 export async function deleteVehicle(formData: FormData) {
-  const { storeId } = await requireStoreUser();
+  const ctx = await requireStoreUser();
+  const { storeId } = ctx;
   const id = String(formData.get("id") ?? "");
   const vehicle = await prisma.vehicle.findFirst({ where: { id, storeId }, include: { photos: true } });
   if (!vehicle) return;
+  const docs = await prisma.vehicle.findUnique({
+    where: { id },
+    select: { expenses: { select: { fileRef: true } }, documents: { select: { fileRef: true } }, taxes: { select: { fileRef: true } } },
+  });
   await prisma.vehicle.delete({ where: { id } });
   await Promise.all(vehicle.photos.map(deleteVehiclePhotoFiles));
+  await Promise.all(
+    [...(docs?.expenses ?? []), ...(docs?.documents ?? []), ...(docs?.taxes ?? [])].map((d) => deletePrivateFile(d.fileRef)),
+  );
+  await audit(ctx, "veiculo.excluido", "vehicle", id, `${vehicle.brand} ${vehicle.model}`);
   revalidatePath("/painel/veiculos");
   redirect("/painel/veiculos");
 }

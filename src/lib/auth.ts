@@ -1,7 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import type { Role } from "@prisma/client";
 import { prisma } from "./db";
 import { SESSION_COOKIE, SESSION_MAX_AGE, signSession, verifySession } from "./session-token";
 
@@ -13,8 +15,11 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(user: { id: string; role: import("@prisma/client").Role; storeId: string | null }) {
-  const token = await signSession({ userId: user.id, role: user.role, storeId: user.storeId });
+export async function createSession(
+  user: { id: string; role: Role; storeId: string | null },
+  actingStoreId: string | null = null,
+) {
+  const token = await signSession({ userId: user.id, role: user.role, storeId: user.storeId, actingStoreId });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -30,10 +35,14 @@ export async function destroySession() {
   jar.delete(SESSION_COOKIE);
 }
 
-/** Usuário logado (lido do banco, para refletir desativação/troca de papel). */
-export async function getCurrentUser() {
+export const getSession = cache(async () => {
   const jar = await cookies();
-  const session = await verifySession(jar.get(SESSION_COOKIE)?.value);
+  return verifySession(jar.get(SESSION_COOKIE)?.value);
+});
+
+/** Usuário logado (lido do banco, para refletir desativação/troca de papel). */
+export const getCurrentUser = cache(async () => {
+  const session = await getSession();
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
@@ -41,22 +50,49 @@ export async function getCurrentUser() {
   });
   if (!user || !user.active) return null;
   return user;
-}
+});
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
-/** Exige usuário de loja. Retorna o usuário e a loja. */
-export async function requireStoreUser() {
+/**
+ * Contexto do painel da loja. Funciona para o dono, o vendedor e para o admin
+ * da plataforma quando ele entra pelo botão "Acessar painel" (asAdmin = true).
+ */
+export const requireStoreUser = cache(async () => {
   const user = await getCurrentUser();
   if (!user) redirect("/entrar");
-  if (!user.store || !user.storeId) redirect(user.role === "SUPER_ADMIN" ? "/admin" : "/entrar");
-  return { user, store: user.store, storeId: user.storeId };
-}
 
+  if (user.role === "SUPER_ADMIN") {
+    const session = await getSession();
+    const store = session?.actingStoreId
+      ? await prisma.store.findUnique({ where: { id: session.actingStoreId } })
+      : null;
+    if (!store) redirect("/admin");
+    return { user, store, storeId: store.id, isOwner: true, asAdmin: true };
+  }
+
+  if (!user.store || !user.storeId) redirect("/entrar");
+  return {
+    user,
+    store: user.store,
+    storeId: user.storeId,
+    isOwner: user.role === "STORE_OWNER",
+    asAdmin: false,
+  };
+});
+
+export type StoreContext = Awaited<ReturnType<typeof requireStoreUser>>;
+
+/** Dono da loja (ou admin agindo como loja). */
 export async function requireStoreOwner() {
   const ctx = await requireStoreUser();
-  if (ctx.user.role !== "STORE_OWNER") redirect("/painel");
+  if (!ctx.isOwner) redirect("/painel");
   return ctx;
+}
+
+/** Custos, compra e lucro: só para o dono (vendedor não vê). */
+export function canSeeFinance(ctx: StoreContext) {
+  return ctx.isOwner;
 }
 
 export async function requireSuperAdmin() {

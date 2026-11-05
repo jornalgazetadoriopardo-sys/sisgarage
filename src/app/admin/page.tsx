@@ -1,14 +1,17 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import type { StoreStatus } from "@prisma/client";
+import { Ban, Building2, Car, CheckCircle2, Clock, ExternalLink, LayoutDashboard, MessageSquare, RotateCcw } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { storeStatusLabels } from "@/lib/labels";
-import { setStoreStatus } from "@/app/actions/admin";
+import { actAsStore, setStoreStatus } from "@/app/actions/admin";
+import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 
-const colors: Record<StoreStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  ACTIVE: "bg-green-100 text-green-800",
-  SUSPENDED: "bg-red-100 text-red-800",
+const chip: Record<StoreStatus, string> = {
+  PENDING: "bg-amber-50 text-amber-700",
+  ACTIVE: "bg-emerald-50 text-emerald-700",
+  SUSPENDED: "bg-red-50 text-red-700",
 };
 
 export default async function AdminStores({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
@@ -29,56 +32,73 @@ export default async function AdminStores({ searchParams }: { searchParams: Prom
   const c = (s: StoreStatus) => counts.find((x) => x.status === s)?._count._all ?? 0;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Lojas</h1>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {(["PENDING", "ACTIVE", "SUSPENDED"] as StoreStatus[]).map((s) => (
-          <Link key={s} href={`/admin?status=${s}`} className={`card p-4 ${filter === s ? "ring-2 ring-brand-500" : ""}`}>
-            <p className="text-xs text-slate-500">{storeStatusLabels[s]}</p>
-            <p className="text-2xl font-bold">{c(s)}</p>
-          </Link>
-        ))}
-        <Link href="/admin" className="card p-4">
-          <p className="text-xs text-slate-500">Veículos cadastrados</p>
-          <p className="text-2xl font-bold">{totalVehicles}</p>
-        </Link>
+    <div className="space-y-8">
+      <PageHeader title="Lojas" subtitle="Aprove novas lojas e acesse o painel de qualquer uma para ajudar no cadastro." />
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <StatCard icon={Clock} tone="amber" label="Aguardando aprovação" value={c("PENDING")} href="/admin?status=PENDING" />
+        <StatCard icon={CheckCircle2} tone="green" label="Ativas" value={c("ACTIVE")} href="/admin?status=ACTIVE" />
+        <StatCard icon={Ban} tone="red" label="Suspensas" value={c("SUSPENDED")} href="/admin?status=SUSPENDED" />
+        <StatCard icon={Car} label="Veículos cadastrados" value={totalVehicles} href="/admin" />
       </div>
+
+      {filter && (
+        <p className="text-sm text-slate-500">
+          Mostrando: <strong>{storeStatusLabels[filter]}</strong> · <Link href="/admin" className="text-brand-600 hover:underline">ver todas</Link>
+        </p>
+      )}
+
       {stores.length === 0 ? (
-        <p className="card p-10 text-center text-slate-500">Nenhuma loja.</p>
+        <div className="card"><EmptyState icon={Building2} title="Nenhuma loja aqui" /></div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-4">
           {stores.map((s) => (
-            <li key={s.id} className="card flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <p className="font-semibold">
-                  {s.name} <span className={`badge ml-1 ${colors[s.status]}`}>{storeStatusLabels[s.status]}</span>
-                </p>
-                <p className="text-sm text-slate-500">
-                  {s.city}/{s.state} · {s.cnpj ? `CNPJ ${s.cnpj} · ` : ""}{s.phone ?? ""}
-                </p>
-                <p className="text-sm text-slate-500">
-                  Responsável: {s.users[0]?.name ?? "—"} ({s.users[0]?.email ?? s.email})
-                </p>
-                <p className="text-xs text-slate-400">
-                  Desde {formatDate(s.createdAt)} · {s._count.vehicles} veículo(s) · {s._count.leads} contato(s)
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {s.status === "ACTIVE" && <Link href={`/lojas/${s.slug}`} target="_blank" className="btn-secondary">Vitrine ↗</Link>}
-                {s.status !== "ACTIVE" && (
-                  <form action={setStoreStatus}>
+            <li key={s.id} className="card p-5 sm:p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  {s.logoUrl ? (
+                    <img src={s.logoUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                  ) : (
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-xl font-bold text-white">{s.name.charAt(0)}</span>
+                  )}
+                  <div className="min-w-0 space-y-1">
+                    <p className="flex flex-wrap items-center gap-2 text-lg font-semibold text-slate-900">
+                      {s.name} <span className={`badge ${chip[s.status]}`}>{storeStatusLabels[s.status]}</span>
+                    </p>
+                    <p className="text-sm text-slate-500">{s.city}/{s.state}{s.phone ? ` · ${s.phone}` : ""}{s.cnpj ? ` · CNPJ ${s.cnpj}` : ""}</p>
+                    <p className="truncate text-sm text-slate-500">Responsável: {s.users[0]?.name ?? "—"} ({s.users[0]?.email ?? s.email})</p>
+                    <p className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
+                      <span>Desde {formatDate(s.createdAt)}</span>
+                      <span className="inline-flex items-center gap-1"><Car className="h-3.5 w-3.5" /> {s._count.vehicles}</span>
+                      <span className="inline-flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {s._count.leads}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <form action={actAsStore}>
                     <input type="hidden" name="id" value={s.id} />
-                    <input type="hidden" name="status" value="ACTIVE" />
-                    <button className="btn-primary">{s.status === "PENDING" ? "Aprovar" : "Reativar"}</button>
+                    <button className="btn-primary"><LayoutDashboard className="h-4 w-4" /> Acessar painel</button>
                   </form>
-                )}
-                {s.status !== "SUSPENDED" && (
-                  <form action={setStoreStatus}>
-                    <input type="hidden" name="id" value={s.id} />
-                    <input type="hidden" name="status" value="SUSPENDED" />
-                    <button className="btn-danger">Suspender</button>
-                  </form>
-                )}
+                  {s.status === "ACTIVE" && (
+                    <Link href={`/lojas/${s.slug}`} target="_blank" className="btn-secondary"><ExternalLink className="h-4 w-4" /> Vitrine</Link>
+                  )}
+                  {s.status !== "ACTIVE" && (
+                    <form action={setStoreStatus}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="status" value="ACTIVE" />
+                      <button className="btn border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                        {s.status === "PENDING" ? <><CheckCircle2 className="h-4 w-4" /> Aprovar</> : <><RotateCcw className="h-4 w-4" /> Reativar</>}
+                      </button>
+                    </form>
+                  )}
+                  {s.status !== "SUSPENDED" && (
+                    <form action={setStoreStatus}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="status" value="SUSPENDED" />
+                      <button className="btn-ghost text-red-600 hover:bg-red-50 hover:text-red-700"><Ban className="h-4 w-4" /> Suspender</button>
+                    </form>
+                  )}
+                </div>
               </div>
             </li>
           ))}

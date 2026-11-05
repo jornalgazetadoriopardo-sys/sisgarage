@@ -17,7 +17,13 @@ import { FieldError, FormMessage } from "./FormMessage";
 import { PhotoDropzone } from "./PhotoDropzone";
 import { UploadQueue } from "./PhotoManager";
 
-export type VehicleFormData = Omit<Vehicle, "price" | "previousPrice"> & {
+/** Só os campos do anúncio: dados de compra/custos nunca vão para este componente. */
+export type VehicleFormData = Pick<
+  Vehicle,
+  | "id" | "type" | "brand" | "model" | "version" | "yearManufacture" | "yearModel" | "mileage" | "color" | "fuel"
+  | "transmission" | "doors" | "engine" | "plate" | "renavam" | "chassis" | "description" | "status" | "published"
+  | "featured" | "featuredLabel"
+> & {
   price: string;
   previousPrice: string | null;
   features: string[];
@@ -119,13 +125,13 @@ export function VehicleForm({
         onSubmit(e);
       }}
       onChange={() => setDirty(true)}
-      className="space-y-6"
+      className="space-y-8"
     >
       {vehicle && <input type="hidden" name="id" value={vehicle.id} />}
 
-      <section className="card space-y-4 p-6">
+      <section className="card space-y-5 p-5 sm:p-6">
         <div>
-          <h2 className="text-lg font-bold">Identificação</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Identificação</h2>
           <p className="text-sm text-slate-500">
             Placa, Renavam e chassi são internos. No site aparece só o final da placa.
           </p>
@@ -141,7 +147,7 @@ export function VehicleForm({
             ))}
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="grid gap-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <div>
             <label className="label" htmlFor="plate">Placa</label>
             <input id="plate" name="plate" defaultValue={vehicle?.plate ?? ""} className="input uppercase" placeholder="ABC1D23" maxLength={8} />
@@ -165,9 +171,9 @@ export function VehicleForm({
         </div>
       </section>
 
-      <section className="card space-y-4 p-6">
-        <h2 className="text-lg font-bold">Características</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+      <section className="card space-y-5 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Características</h2>
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="brand">Marca *</label>
             <input id="brand" name="brand" required defaultValue={vehicle?.brand} className="input" placeholder={isMoto ? "Honda" : "Chevrolet"} />
@@ -183,7 +189,7 @@ export function VehicleForm({
           <label className="label" htmlFor="version">Versão</label>
           <input id="version" name="version" defaultValue={vehicle?.version ?? ""} className="input" placeholder={isMoto ? "Titan" : "1.0 Turbo LTZ"} />
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           <div>
             <label className="label" htmlFor="yearManufacture">Ano fabricação *</label>
             <input id="yearManufacture" name="yearManufacture" required inputMode="numeric" maxLength={4} defaultValue={vehicle?.yearManufacture} className="input" />
@@ -206,7 +212,7 @@ export function VehicleForm({
             </datalist>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           <div>
             <label className="label" htmlFor="engine">{isMoto ? "Cilindrada" : "Motor"}</label>
             <input id="engine" name="engine" defaultValue={vehicle?.engine ?? ""} className="input" placeholder={isMoto ? "160 cc" : "1.0 Turbo"} />
@@ -235,8 +241,8 @@ export function VehicleForm({
         </div>
       </section>
 
-      <section className="card space-y-4 p-6">
-        <h2 className="text-lg font-bold">Opcionais</h2>
+      <section className="card space-y-5 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Opcionais</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {suggestions.map((f) => (
             <label key={f} className="flex items-center gap-2 text-sm">
@@ -251,9 +257,9 @@ export function VehicleForm({
         </div>
       </section>
 
-      <section className="card space-y-4 p-6">
-        <h2 className="text-lg font-bold">Preço e anúncio</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+      <section className="card space-y-5 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Preço e anúncio</h2>
+        <div className="grid gap-5 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="price">Preço de venda (R$) *</label>
             <input id="price" name="price" required inputMode="decimal" defaultValue={moneyInput(vehicle?.price)} className="input" placeholder="45.900" />
@@ -271,7 +277,7 @@ export function VehicleForm({
             </select>
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
+        <div className="grid gap-5 sm:grid-cols-3 sm:items-end">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="published" defaultChecked={vehicle?.published ?? true} className="h-4 w-4" />
             Publicar no site
@@ -294,8 +300,8 @@ export function VehicleForm({
       </section>
 
       {!vehicle && (
-        <section className="card space-y-3 p-6">
-          <h2 className="text-lg font-bold">Fotos</h2>
+        <section className="card space-y-4 p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-slate-900">Fotos</h2>
           {queue.length > 0 ? (
             <UploadQueue queue={queue} />
           ) : (
@@ -327,7 +333,7 @@ export function VehicleForm({
         </section>
       )}
 
-      <div className="sticky bottom-0 -mx-4 flex flex-col gap-3 border-t border-slate-200 bg-slate-50/95 px-4 py-4 sm:flex-row sm:items-center">
+      <div className="sticky bottom-[92px] z-20 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center lg:bottom-4">
         <button type="submit" className="btn-primary" disabled={busy}>
           {state.id ? "Enviando fotos..." : pending ? "Salvando..." : vehicle ? "Salvar alterações" : "Cadastrar veículo"}
         </button>

@@ -9,7 +9,7 @@ import { FieldError, FormMessage } from "./FormMessage";
 export function StoreForm({ store }: { store: Store }) {
   const { state, onSubmit, pending } = useFormAction(updateStore);
   return (
-    <form onSubmit={onSubmit} className="card space-y-4 p-6">
+    <form onSubmit={onSubmit} className="card space-y-5 p-5 sm:p-6">
       <div className="flex items-center gap-4">
         {store.logoUrl ? (
           <img src={store.logoUrl} alt="Logo" className="h-16 w-16 rounded-xl object-cover" />
@@ -21,7 +21,7 @@ export function StoreForm({ store }: { store: Store }) {
           <input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/webp" className="input" />
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="name">Nome da loja</label>
           <input id="name" name="name" required defaultValue={store.name} className="input" />
@@ -49,7 +49,7 @@ export function StoreForm({ store }: { store: Store }) {
           <input id="openingHours" name="openingHours" defaultValue={store.openingHours ?? ""} className="input" placeholder="Seg a sex 8h–18h · Sáb 8h–12h" />
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
+      <div className="grid gap-5 sm:grid-cols-[140px_1fr]">
         <div>
           <label className="label" htmlFor="zipCode">CEP</label>
           <input id="zipCode" name="zipCode" defaultValue={store.zipCode ?? ""} className="input" />

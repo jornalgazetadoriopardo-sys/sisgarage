@@ -277,3 +277,42 @@ export async function saveWatermarkImage(file: File, folder: string, makeWhite: 
   const out = await img.png().toBuffer();
   return writePublic(path.join(safeFolder(folder), `marca-${randomName()}.png`), out);
 }
+
+// ---------- Arquivos privados (comprovantes e documentos) ----------
+
+export const MAX_PRIVATE_BYTES = 4 * 1024 * 1024; // limite de envio da Vercel
+const PRIVATE_TYPES: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+export const PRIVATE_CONTENT_TYPES: Record<string, string> = Object.fromEntries(
+  Object.entries(PRIVATE_TYPES).map(([type, ext]) => [ext, type]),
+);
+
+/** Grava um comprovante/documento (PDF ou imagem). Nunca fica acessível sem login. */
+export async function savePrivateFile(file: File, folder: string) {
+  if (file.size > MAX_PRIVATE_BYTES) throw new UploadError(`Arquivo muito grande: ${file.name} (máx. 4 MB).`);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  let ext: string | undefined;
+  if (buffer.subarray(0, 5).toString("latin1") === "%PDF-") ext = ".pdf";
+  else {
+    const format = await sharp(buffer).metadata().then((m) => m.format).catch(() => undefined);
+    ext = format === "jpeg" ? ".jpg" : format === "png" ? ".png" : format === "webp" ? ".webp" : undefined;
+  }
+  if (!ext) throw new UploadError(`Formato não suportado: ${file.name}. Envie PDF, JPG, PNG ou WEBP.`);
+  const ref = await writeOriginal(path.join(safeFolder(folder), `${randomName()}${ext}`), buffer);
+  return { ref, name: file.name.slice(0, 160) };
+}
+
+export async function readPrivateFile(ref: string) {
+  const data = await readOriginal(ref);
+  // ref é um caminho no disco ou a URL do Blob; a extensão vem sempre no final
+  const ext = path.extname(new URL(ref, "file:///").pathname).toLowerCase();
+  return { data, contentType: PRIVATE_CONTENT_TYPES[ext] ?? "application/octet-stream" };
+}
+
+export async function deletePrivateFile(ref: string | null | undefined) {
+  await deleteOriginal(ref);
+}

@@ -68,3 +68,53 @@ export const watermarkPositionLabels = {
   TOP_LEFT: "Canto superior esquerdo",
   CENTER: "Centro",
 } as const;
+
+export const purchaseSourceLabels = {
+  PERSON: "Pessoa física",
+  DEALER: "Outra loja",
+  AUCTION: "Leilão",
+  TRADE_IN: "Troca",
+  OTHER: "Outro",
+} as const;
+
+export const expenseCategoryLabels = {
+  MECHANICS: "Mecânica",
+  BODYWORK: "Funilaria e pintura",
+  TIRES: "Pneus",
+  DETAILING: "Estética e limpeza",
+  ELECTRICAL: "Elétrica",
+  DISPATCHER: "Despachante",
+  TRANSFER: "Transferência",
+  INSPECTION: "Vistoria e laudo",
+  TRANSPORT: "Transporte e guincho",
+  COMMISSION: "Comissão",
+  OTHER: "Outros",
+} as const;
+
+export const documentTypeLabels = {
+  CRLV: "CRLV (documento do veículo)",
+  ATPV: "ATPV-e (recibo de compra e venda)",
+  CAUTELAR: "Laudo cautelar",
+  INSPECTION: "Vistoria",
+  POWER_OF_ATTORNEY: "Procuração",
+  SPARE_KEY: "Chave reserva",
+  MANUAL: "Manual do proprietário",
+  OWNER_ID: "Documento do antigo dono",
+  OTHER: "Outro",
+} as const;
+
+/** Itens criados automaticamente na lista de verificação de cada veículo. */
+export const DEFAULT_DOCUMENTS = ["CRLV", "ATPV", "CAUTELAR", "INSPECTION", "SPARE_KEY", "MANUAL"] as const;
+
+export const documentStatusLabels = {
+  PENDING: "Pendente",
+  OK: "Em ordem",
+  NOT_APPLICABLE: "Não se aplica",
+} as const;
+
+export const taxKindLabels = {
+  IPVA: "IPVA",
+  LICENSING: "Licenciamento",
+  FINE: "Multa",
+  OTHER: "Outro débito",
+} as const;

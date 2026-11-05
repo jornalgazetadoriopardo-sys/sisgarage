@@ -13,7 +13,7 @@ export function SearchFilters({
   action?: string;
 }) {
   return (
-    <form action={action} method="get" className="card space-y-4 p-4">
+    <form action={action} method="get" className="card space-y-5 p-5 lg:sticky lg:top-28">
       <div>
         <label className="label" htmlFor="q">Buscar</label>
         <input id="q" name="q" defaultValue={values.q} placeholder="Ex.: Onix, Corolla XEi" className="input" />

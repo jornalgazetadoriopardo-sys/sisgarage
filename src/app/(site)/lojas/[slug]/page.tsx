@@ -40,7 +40,7 @@ export default async function StorePage({
   const whats = store.whatsapp || store.phone;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -60,7 +60,7 @@ export default async function StorePage({
           sameAs: store.instagram ? [`https://instagram.com/${store.instagram}`] : undefined,
         }}
       />
-      <header className="card mb-8 flex flex-col gap-4 p-6 md:flex-row md:items-center">
+      <header className="card mb-10 flex flex-col gap-6 p-6 sm:p-8 md:flex-row md:items-center">
         {store.logoUrl ? (
           <img src={store.logoUrl} alt={store.name} className="h-20 w-20 rounded-xl object-cover" />
         ) : (
@@ -88,14 +88,14 @@ export default async function StorePage({
           )}
         </div>
       </header>
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-bold">Estoque ({result.total})</h2>
         <SortSelect value={sp.ordem} />
       </div>
       {result.items.length === 0 ? (
         <p className="card p-10 text-center text-slate-500">Nenhum veículo publicado no momento.</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {result.items.map((v) => <VehicleCard key={v.id} vehicle={v} showStore={false} />)}
         </div>
       )}

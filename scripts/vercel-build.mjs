@@ -46,6 +46,9 @@ if (env === "production") {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     console.warn("\n⚠ BLOB_READ_WRITE_TOKEN ausente: o site vai funcionar, mas o envio de fotos não. Conecte um Blob em Storage.\n");
   }
+  if (!process.env.CRON_SECRET) {
+    console.warn("⚠ CRON_SECRET ausente: a atualização mensal automática da FIPE fica desligada.\n");
+  }
   run("npx prisma migrate deploy");
   run("npx tsx prisma/seed.ts");
 } else {
