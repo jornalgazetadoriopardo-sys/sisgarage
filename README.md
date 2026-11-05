@@ -33,8 +33,21 @@ Plataforma para lojas de veículos. Cada loja cadastra o estoque, que aparece nu
 - Dados da loja, usuários (dono e vendedores) e troca de senha
 - Botão "Buscar pela placa", já ligado ao ponto de integração (ativa quando houver provedor contratado)
 
+**Gestão interna do veículo (fase 2)**: aba "Gestão" de cada veículo
+- Compra: data, valor pago, origem, de quem comprou e forma de pagamento
+- Gastos por categoria, com comprovante anexado (PDF ou foto)
+- Documentação: lista de verificação (CRLV, ATPV-e, laudo cautelar, vistoria, chave reserva, manual...) com situação, validade e arquivo
+- IPVA, licenciamento e multas: valor, vencimento e pagamento
+- Tabela FIPE: vínculo com o modelo exato, consulta gratuita, atualização mensal automática e histórico
+- Lucro previsto: custo total (compra + gastos + débitos), margem e preço em relação à FIPE
+- Painel inicial com "Precisa de atenção" (débitos vencidos, contatos sem resposta, documentos pendentes ou vencendo, veículos sem foto ou parados)
+- Vendedor vê documentação e FIPE, mas não vê compra, gastos, valores nem lucro
+- Arquivos privados: só abrem com login da loja dona do veículo
+- Histórico de alterações (quem fez o quê, inclusive o admin)
+
 **Painel master** (`/admin`)
 - Aprovar, suspender e reativar lojas
+- "Acessar painel" de qualquer loja, com faixa de aviso e registro no histórico
 
 **Segurança**
 - Senhas com bcrypt e sessão em cookie httpOnly assinado
@@ -85,7 +98,6 @@ storage/originals/        originais privados (não vai para o git)
 
 ## Próximas fases
 
-2. Custos do veículo, documentação, IPVA, FIPE e lucro por veículo
 3. Clientes, vendas, recibos e contratos em PDF
 4. Financeiro (contas a pagar e a receber, fluxo de caixa), agendamentos e CRM
 5. Consulta por placa e Renavam, WhatsApp, postagem no Facebook/Instagram e cobrança das lojas

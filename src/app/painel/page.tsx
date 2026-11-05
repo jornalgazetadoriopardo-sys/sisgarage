@@ -1,17 +1,43 @@
 import Link from "next/link";
-import { requireStoreUser } from "@/lib/auth";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle, BadgeDollarSign, CalendarClock, Camera, Car, ChevronRight, FileWarning, Hourglass,
+  MessageSquare, PiggyBank, Plus, Receipt, Sparkles, TrendingUp, Wallet,
+} from "lucide-react";
+import { canSeeFinance, requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatDate, formatPrice, vehicleTitle } from "@/lib/format";
+import { daysSince, vehicleFinance } from "@/lib/finance";
+import { formatDate, formatMoney, vehicleTitle, whatsappLink } from "@/lib/format";
+import { IconBox, PageHeader, Section, StatCard, type Tone } from "@/components/ui";
+
+const STALE_DAYS = 90;
+
+type Alert = { icon: LucideIcon; tone: Tone; title: string; text: string; href: string };
 
 export default async function PanelHome({ searchParams }: { searchParams: Promise<{ bemvindo?: string }> }) {
-  const { storeId, user } = await requireStoreUser();
+  const ctx = await requireStoreUser();
+  const { storeId, user, store } = ctx;
+  const finance = canSeeFinance(ctx);
   const { bemvindo } = await searchParams;
 
-  const [byStatus, published, stockValue, views, leads] = await Promise.all([
-    prisma.vehicle.groupBy({ by: ["status"], where: { storeId }, _count: { _all: true } }),
-    prisma.vehicle.count({ where: { storeId, published: true, status: { in: ["AVAILABLE", "RESERVED"] } } }),
-    prisma.vehicle.aggregate({ where: { storeId, status: { in: ["AVAILABLE", "RESERVED", "PREPARING"] } }, _sum: { price: true } }),
-    prisma.vehicle.aggregate({ where: { storeId }, _sum: { views: true } }),
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const in30 = new Date(today.getTime() + 30 * 86_400_000);
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+
+  const [stock, unreadLeads, newLeads, leads] = await Promise.all([
+    prisma.vehicle.findMany({
+      where: { storeId, status: { not: "SOLD" } },
+      select: {
+        id: true, brand: true, model: true, version: true, status: true, published: true, price: true,
+        purchasePrice: true, purchaseDate: true, fipeValue: true, createdAt: true,
+        _count: { select: { photos: true } },
+        expenses: { select: { amount: true } },
+        taxes: { select: { amount: true, paidAt: true, dueDate: true } },
+        documents: { select: { status: true, expiresAt: true } },
+      },
+    }),
+    prisma.lead.count({ where: { storeId, read: false } }),
+    prisma.lead.count({ where: { storeId, createdAt: { gte: weekAgo } } }),
     prisma.lead.findMany({
       where: { storeId },
       orderBy: { createdAt: "desc" },
@@ -19,62 +45,126 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
       include: { vehicle: { select: { brand: true, model: true, version: true } } },
     }),
   ]);
-  const count = (s: string) => byStatus.find((b) => b.status === s)?._count._all ?? 0;
 
-  const stats = [
-    { label: "À venda", value: count("AVAILABLE") },
-    { label: "Em preparação", value: count("PREPARING") },
-    { label: "Reservados", value: count("RESERVED") },
-    { label: "Vendidos", value: count("SOLD") },
-    { label: "Publicados no site", value: published },
-    { label: "Visualizações", value: views._sum.views ?? 0 },
-  ];
+  const forSale = stock.filter((v) => v.status === "AVAILABLE" || v.status === "RESERVED");
+  const fin = stock.map((v) => ({ v, f: vehicleFinance(v) }));
+  const invested = fin.reduce((s, x) => s + x.f.cost, 0);
+  const expectedProfit = fin.filter((x) => x.f.cost > 0).reduce((s, x) => s + x.f.profit, 0);
+  const stockValue = forSale.reduce((s, v) => s + Number(v.price), 0);
+
+  // ----- O que precisa de atenção (mais importante primeiro) -----
+  const overdue = stock.flatMap((v) => v.taxes.filter((t) => !t.paidAt && t.dueDate && t.dueDate < today).map(() => v));
+  const dueSoon = stock.flatMap((v) => v.taxes.filter((t) => !t.paidAt && t.dueDate && t.dueDate >= today && t.dueDate <= in30).map(() => v));
+  const docsPending = stock.filter((v) => v.documents.some((d) => d.status === "PENDING"));
+  const docsExpiring = stock.filter((v) => v.documents.some((d) => d.expiresAt && d.expiresAt <= in30));
+  const noPhotos = stock.filter((v) => v._count.photos === 0);
+  const stale = stock.filter((v) => daysSince(v.purchaseDate ?? v.createdAt) > STALE_DAYS);
+
+  const first = (list: typeof stock, tab = "") => (list.length === 1 ? `/painel/veiculos/${list[0].id}${tab}` : "/painel/veiculos");
+  const alerts: Alert[] = [];
+  if (overdue.length) alerts.push({ icon: AlertTriangle, tone: "red", title: `${overdue.length} débito(s) vencido(s)`, text: "IPVA, licenciamento ou multas com vencimento passado.", href: first([...new Set(overdue)], "?aba=gestao") });
+  if (unreadLeads) alerts.push({ icon: MessageSquare, tone: "blue", title: `${unreadLeads} contato(s) sem resposta`, text: "Compradores aguardando retorno.", href: "/painel/contatos" });
+  if (dueSoon.length) alerts.push({ icon: CalendarClock, tone: "amber", title: `${dueSoon.length} débito(s) vencem em 30 dias`, text: "Programe o pagamento para não perder o prazo.", href: first([...new Set(dueSoon)], "?aba=gestao") });
+  if (docsExpiring.length) alerts.push({ icon: FileWarning, tone: "amber", title: `${docsExpiring.length} veículo(s) com documento vencendo`, text: "Laudos ou vistorias perto do vencimento.", href: first(docsExpiring, "?aba=gestao") });
+  if (docsPending.length) alerts.push({ icon: FileWarning, tone: "amber", title: `${docsPending.length} veículo(s) com documentação pendente`, text: "Itens da lista de verificação ainda não conferidos.", href: first(docsPending, "?aba=gestao") });
+  if (noPhotos.length) alerts.push({ icon: Camera, tone: "violet", title: `${noPhotos.length} veículo(s) sem foto`, text: "Anúncios com fotos recebem muito mais contatos.", href: first(noPhotos, "?aba=fotos") });
+  if (stale.length) alerts.push({ icon: Hourglass, tone: "slate", title: `${stale.length} veículo(s) há mais de ${STALE_DAYS} dias no estoque`, text: "Revise preço ou destaque esses anúncios.", href: "/painel/veiculos" });
 
   return (
-    <div className="space-y-6">
-      {bemvindo && (
-        <div className="card border-green-200 bg-green-50 p-4 text-green-900">
-          <p className="font-semibold">Loja cadastrada, {user.name.split(" ")[0]}!</p>
-          <p className="text-sm">Comece cadastrando seus veículos. A aprovação da loja é feita pela equipe SisGarage.</p>
-        </div>
-      )}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Visão geral</h1>
-        <Link href="/painel/veiculos/novo" className="btn-primary">+ Novo veículo</Link>
+    <div className="space-y-8">
+      <PageHeader
+        title={`Olá, ${user.name.split(" ")[0]}`}
+        subtitle={bemvindo ? "Loja cadastrada! Comece incluindo os veículos do estoque." : "Este é o resumo da sua loja hoje."}
+        actions={
+          <Link href="/painel/veiculos/novo" className="btn-primary hidden lg:inline-flex">
+            <Plus className="h-4 w-4" /> Novo veículo
+          </Link>
+        }
+      />
+
+      {/* Números principais */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <StatCard icon={Car} label="À venda" value={forSale.length} hint={`${stock.length - forSale.length} em preparação`} href="/painel/veiculos" />
+        <StatCard icon={MessageSquare} tone="green" label="Contatos (7 dias)" value={newLeads} hint={unreadLeads ? `${unreadLeads} sem resposta` : "Todos respondidos"} href="/painel/contatos" />
+        {finance ? (
+          <>
+            <StatCard icon={Wallet} tone="violet" label="Investido no estoque" value={formatMoney(invested)} hint="Compra + gastos + débitos" />
+            <StatCard icon={TrendingUp} tone={expectedProfit >= 0 ? "green" : "red"} label="Lucro previsto" value={formatMoney(expectedProfit)} hint="Veículos com custo lançado" />
+          </>
+        ) : (
+          <StatCard icon={BadgeDollarSign} tone="violet" label="Valor do estoque à venda" value={formatMoney(stockValue)} />
+        )}
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {stats.map((s) => (
-          <div key={s.label} className="card p-4">
-            <p className="text-xs text-slate-500">{s.label}</p>
-            <p className="text-2xl font-bold">{s.value}</p>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Atenção */}
+        <Section icon={Sparkles} tone="amber" title="Precisa de atenção" description="Em ordem de prioridade." className="lg:col-span-3">
+          {alerts.length === 0 ? (
+            <p className="rounded-xl bg-emerald-50 px-4 py-6 text-center text-sm font-medium text-emerald-700">Tudo em dia por aqui. 🎉</p>
+          ) : (
+            <ul className="space-y-3">
+              {alerts.map((a) => (
+                <li key={a.title}>
+                  <Link href={a.href} className="flex items-center gap-4 rounded-xl border border-slate-100 p-4 transition hover:border-slate-200 hover:bg-slate-50">
+                    <IconBox icon={a.icon} tone={a.tone} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-800">{a.title}</p>
+                      <p className="text-sm text-slate-500">{a.text}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {/* Atalhos */}
+        <Section icon={PiggyBank} tone="blue" title="Atalhos" className="lg:col-span-2">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { href: "/painel/veiculos/novo", icon: Plus, label: "Cadastrar veículo" },
+              { href: "/painel/veiculos?status=PREPARING", icon: Receipt, label: "Em preparação" },
+              { href: "/painel/contatos", icon: MessageSquare, label: "Contatos" },
+              ...(store.status === "ACTIVE" ? [{ href: `/lojas/${store.slug}`, icon: Car, label: "Ver vitrine" }] : []),
+            ].map((a) => (
+              <Link key={a.href} href={a.href} className="flex flex-col items-start gap-3 rounded-xl border border-slate-100 p-4 transition hover:border-brand-200 hover:bg-brand-50/50">
+                <a.icon className="h-5 w-5 text-brand-600" />
+                <span className="text-sm font-medium text-slate-700">{a.label}</span>
+              </Link>
+            ))}
           </div>
-        ))}
+        </Section>
       </div>
-      <div className="card p-4">
-        <p className="text-xs text-slate-500">Valor do estoque (preço de venda)</p>
-        <p className="text-2xl font-bold">{formatPrice(stockValue._sum.price ?? 0)}</p>
-      </div>
-      <section className="card">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="font-bold">Últimos contatos</h2>
-          <Link href="/painel/contatos" className="text-sm font-semibold text-brand-600">Ver todos</Link>
-        </div>
+
+      <Section
+        icon={MessageSquare}
+        tone="green"
+        title="Últimos contatos"
+        actions={<Link href="/painel/contatos" className="btn-ghost">Ver todos <ChevronRight className="h-4 w-4" /></Link>}
+      >
         {leads.length === 0 ? (
-          <p className="p-4 text-sm text-slate-500">Nenhum contato recebido ainda.</p>
+          <p className="py-6 text-center text-sm text-slate-500">Nenhum contato recebido ainda. Eles aparecem aqui quando alguém escreve pelo site.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {leads.map((l) => (
-              <li key={l.id} className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  <strong>{l.name}</strong> · {l.phone}
-                  {l.vehicle && <span className="text-slate-500"> — {vehicleTitle(l.vehicle)}</span>}
-                </span>
-                <span className="text-xs text-slate-500">{formatDate(l.createdAt)}</span>
+              <li key={l.id} className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-800">
+                    {l.name} {!l.read && <span className="badge ml-1 bg-brand-100 text-brand-700">Novo</span>}
+                  </p>
+                  <p className="truncate text-sm text-slate-500">
+                    {l.vehicle ? vehicleTitle(l.vehicle) : "Contato geral"} · {formatDate(l.createdAt)}
+                  </p>
+                </div>
+                <a className="btn-secondary self-start sm:self-auto" target="_blank" rel="noopener noreferrer" href={whatsappLink(l.phone)}>
+                  Responder
+                </a>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Section>
     </div>
   );
 }

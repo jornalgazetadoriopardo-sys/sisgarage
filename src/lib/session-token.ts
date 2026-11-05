@@ -9,6 +9,8 @@ export type SessionPayload = {
   userId: string;
   role: Role;
   storeId: string | null;
+  /** Admin da plataforma usando o painel de uma loja */
+  actingStoreId?: string | null;
 };
 
 function secretKey() {
@@ -35,6 +37,7 @@ export async function verifySession(token: string | undefined): Promise<SessionP
       userId: String(payload.userId),
       role: payload.role as Role,
       storeId: (payload.storeId as string | null) ?? null,
+      actingStoreId: (payload.actingStoreId as string | null) ?? null,
     };
   } catch {
     return null;

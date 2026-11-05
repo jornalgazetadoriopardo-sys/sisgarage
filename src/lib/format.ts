@@ -88,3 +88,27 @@ export function normalizeInstagram(value: string) {
   const v = value.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/\/.*$/, "");
   return /^[A-Za-z0-9._]{1,30}$/.test(v) ? v : "";
 }
+
+/** Aceita "45.900", "45900", "45.900,50", "R$ 45.900". */
+export function parseMoney(v: string) {
+  const clean = v.replace(/[^\d,]/g, "").replace(",", ".");
+  return clean ? Number(clean) : NaN;
+}
+
+/** Datas "só dia" (sem hora) gravadas em UTC: exibe sem deslocar o fuso. */
+export function formatDay(date: Date | null | undefined) {
+  return date ? date.toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—";
+}
+
+/** Valor para <input type="date"> */
+export function dayInput(date: Date | null | undefined) {
+  return date ? date.toISOString().slice(0, 10) : "";
+}
+
+export function formatMoney(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+export function formatPercent(value: number) {
+  return `${value > 0 ? "+" : ""}${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+}

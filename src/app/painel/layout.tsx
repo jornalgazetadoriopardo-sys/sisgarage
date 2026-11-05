@@ -1,50 +1,77 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AlertTriangle, Clock, ShieldCheck } from "lucide-react";
 import { requireStoreUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PanelShell } from "@/components/PanelShell";
-import { storeStatusLabels } from "@/lib/labels";
+import type { NavItem } from "@/components/PanelNav";
+import { stopActing } from "@/app/actions/admin";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const { user, store } = await requireStoreUser();
+  const { user, store, isOwner, asAdmin } = await requireStoreUser();
   const unread = await prisma.lead.count({ where: { storeId: store.id, read: false } });
-  const isOwner = user.role === "STORE_OWNER";
 
-  const nav = [
-    { href: "/painel", label: "Início" },
-    { href: "/painel/veiculos", label: "Veículos" },
-    { href: "/painel/contatos", label: "Contatos", badge: unread },
+  const nav: NavItem[] = [
+    { href: "/painel", label: "Início", icon: "home", group: "Loja" },
+    { href: "/painel/veiculos", label: "Veículos", icon: "car", group: "Loja" },
+    { href: "/painel/contatos", label: "Contatos", icon: "message", badge: unread, group: "Loja" },
     ...(isOwner
-      ? [
-          { href: "/painel/loja", label: "Dados da loja" },
-          { href: "/painel/usuarios", label: "Usuários" },
-        ]
+      ? ([
+          { href: "/painel/loja", label: "Dados da loja", icon: "store", group: "Configurações" },
+          { href: "/painel/usuarios", label: "Usuários", icon: "users", group: "Configurações" },
+        ] satisfies NavItem[])
       : []),
-    { href: "/painel/conta", label: "Minha senha" },
+    ...(!asAdmin ? ([{ href: "/painel/conta", label: "Minha senha", icon: "key", group: "Configurações" }] satisfies NavItem[]) : []),
   ];
 
-  const banner =
-    store.status !== "ACTIVE" ? (
-      <div className={store.status === "PENDING" ? "bg-amber-50 text-amber-900" : "bg-red-50 text-red-800"}>
-        <p className="mx-auto max-w-7xl px-4 py-2 text-sm">
-          <strong>{storeStatusLabels[store.status]}.</strong>{" "}
-          {store.status === "PENDING"
-            ? "Seus veículos aparecerão no site assim que a loja for aprovada. Enquanto isso, cadastre o estoque."
-            : "Seus anúncios não estão visíveis. Entre em contato com o suporte."}
-        </p>
-      </div>
-    ) : (
-      <div className="bg-brand-50">
-        <p className="mx-auto max-w-7xl px-4 py-2 text-sm text-brand-700">
-          Sua vitrine: <Link className="font-semibold underline" href={`/lojas/${store.slug}`} target="_blank" rel="noopener">/lojas/{store.slug}</Link>
-        </p>
-      </div>
+  const banners: React.ReactNode[] = [];
+  if (asAdmin) {
+    banners.push(
+      <div key="admin" className="bg-violet-600 text-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
+          <p className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 shrink-0" />
+            Você está no painel de <strong>{store.name}</strong> como administrador. As alterações ficam registradas.
+          </p>
+          <form action={stopActing}>
+            <button className="btn bg-white/15 py-1.5 text-white hover:bg-white/25">Voltar ao admin</button>
+          </form>
+        </div>
+      </div>,
     );
+  }
+  if (store.status !== "ACTIVE") {
+    const pending = store.status === "PENDING";
+    banners.push(
+      <div key="status" className={pending ? "bg-amber-50 text-amber-900" : "bg-red-50 text-red-800"}>
+        <p className="mx-auto flex max-w-6xl items-start gap-2 px-4 py-3 text-sm sm:px-6 lg:px-10">
+          {pending ? <Clock className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+          <span>
+            <strong>{pending ? "Loja aguardando aprovação." : "Loja suspensa."}</strong>{" "}
+            {pending
+              ? "Os veículos aparecem no site assim que a loja for aprovada. Enquanto isso, cadastre o estoque."
+              : "Os anúncios não estão visíveis. Entre em contato com o suporte."}
+            {pending && asAdmin && <> <Link href="/admin" className="underline">Aprovar no admin</Link></>}
+          </span>
+        </p>
+      </div>,
+    );
+  }
 
   return (
-    <PanelShell title={store.name} subtitle={`${store.city}/${store.state}`} userName={user.name} nav={nav} banner={banner}>
+    <PanelShell
+      nav={nav}
+      primary={["/painel", "/painel/veiculos", "/painel/contatos"]}
+      newHref="/painel/veiculos/novo"
+      title={store.name}
+      subtitle={`${store.city}/${store.state}`}
+      logoUrl={store.logoUrl}
+      userName={user.name}
+      publicHref={store.status === "ACTIVE" ? `/lojas/${store.slug}` : undefined}
+      banner={banners.length ? <>{banners}</> : undefined}
+    >
       {children}
     </PanelShell>
   );

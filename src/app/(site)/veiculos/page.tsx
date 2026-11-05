@@ -13,18 +13,18 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
   const title = params.marca ? `${params.marca} à venda` : "Veículos à venda";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           <p className="text-sm text-slate-500">{result.total} veículo(s) encontrado(s)</p>
         </div>
         <SortSelect value={params.ordem} />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
         <aside>
           <details className="lg:hidden" open={false}>
-            <summary className="btn-secondary mb-3 w-full">Filtros</summary>
+            <summary className="btn-secondary mb-4 w-full">Filtros</summary>
             <SearchFilters values={params} brands={brands} features={features} />
           </details>
           <div className="hidden lg:block">
@@ -35,7 +35,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
           {result.items.length === 0 ? (
             <p className="card p-10 text-center text-slate-500">Nenhum veículo encontrado com esses filtros.</p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {result.items.map((v) => <VehicleCard key={v.id} vehicle={v} />)}
             </div>
           )}

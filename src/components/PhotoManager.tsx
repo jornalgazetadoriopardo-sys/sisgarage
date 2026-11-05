@@ -44,22 +44,22 @@ export function PhotoManager({ vehicleId, photos: initial, watermarkOn }: { vehi
   };
 
   return (
-    <section className="card space-y-4 p-6">
+    <section className="card space-y-6 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">Fotos ({photos.length})</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Fotos ({photos.length})</h2>
         <span className="text-xs text-slate-500">
           {pending ? "Salvando..." : "Arraste para mudar a ordem. A primeira é a capa."}
           {watermarkOn && " · Marca d'água ativa"}
         </span>
       </div>
-      <ul ref={listRef} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <ul ref={listRef} className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map((p, i) => (
-          <li key={p.id} data-id={p.id} className="cursor-grab overflow-hidden rounded-lg border border-slate-200 bg-white active:cursor-grabbing">
+          <li key={p.id} data-id={p.id} className="cursor-grab overflow-hidden rounded-xl border border-slate-200 bg-white active:cursor-grabbing">
             <div className="relative aspect-[4/3] bg-slate-100">
               <img src={p.thumbUrl} alt={`Foto ${i + 1}`} className="pointer-events-none h-full w-full object-cover" />
               {i === 0 && <span className="badge absolute left-1 top-1 bg-brand-600 text-white">Capa</span>}
             </div>
-            <div className="flex items-center justify-between gap-1 p-1 text-xs">
+            <div className="flex items-center justify-between gap-1 p-2 text-xs">
               {i !== 0 ? (
                 <button type="button" onClick={() => makeCover(p.id)} className="rounded px-2 py-1 hover:bg-slate-100">Tornar capa</button>
               ) : <span />}

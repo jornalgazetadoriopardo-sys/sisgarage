@@ -51,6 +51,7 @@ O código está no branch `claude/vehicle-registration-system-kd97c4`, e a Verce
 | `ADMIN_EMAIL` | seu e-mail de administrador da plataforma |
 | `ADMIN_PASSWORD` | uma senha forte (é com ela que você entra no `/admin`) |
 | `SEED_DEMO` | `1` para criar a loja de demonstração (opcional) |
+| `CRON_SECRET` | outro texto aleatório de 32+ caracteres: liga a atualização mensal automática da FIPE |
 
 4. Clique em **Deploy**.
 

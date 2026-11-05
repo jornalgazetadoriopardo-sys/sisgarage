@@ -10,6 +10,8 @@ import {
 } from "@/lib/format";
 import { fuelLabels, transmissionLabels, vehicleTypeLabels } from "@/lib/labels";
 import { absoluteUrl } from "@/lib/site";
+import { Calendar, Car, CheckCircle2, Droplet, Fuel, Gauge, Hash, MapPin, Palette, Phone, Settings2, DoorOpen, Store as StoreIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Gallery } from "@/components/Gallery";
 import { LeadForm } from "@/components/LeadForm";
 import { VehicleCard } from "@/components/VehicleCard";
@@ -53,22 +55,22 @@ export default async function VehiclePage({ params }: Props) {
 
   const title = vehicleTitle(v);
   const isMoto = v.type === "MOTORCYCLE";
-  const specs: [string, string | null | undefined][] = [
-    ["Ano", `${v.yearManufacture}/${v.yearModel}`],
-    ["Quilometragem", formatKm(v.mileage)],
-    [isMoto ? "Cilindrada" : "Motor", v.engine],
-    ["Câmbio", isMoto ? null : transmissionLabels[v.transmission]],
-    ["Combustível", fuelLabels[v.fuel]],
-    ["Tipo", vehicleTypeLabels[v.type]],
-    ["Cor", v.color],
-    ["Portas", v.doors ? String(v.doors) : null],
-    ["Final da placa", plateEnding(v.plate)],
+  const specs: [LucideIcon, string, string | null | undefined][] = [
+    [Calendar, "Ano", `${v.yearManufacture}/${v.yearModel}`],
+    [Gauge, "Quilometragem", formatKm(v.mileage)],
+    [Droplet, isMoto ? "Cilindrada" : "Motor", v.engine],
+    [Settings2, "Câmbio", isMoto ? null : transmissionLabels[v.transmission]],
+    [Fuel, "Combustível", fuelLabels[v.fuel]],
+    [Car, "Tipo", vehicleTypeLabels[v.type]],
+    [Palette, "Cor", v.color],
+    [DoorOpen, "Portas", v.doors ? String(v.doors) : null],
+    [Hash, "Final da placa", plateEnding(v.plate)],
   ];
   const whats = v.store.whatsapp || v.store.phone;
   const whatsMsg = `Olá! Tenho interesse no ${title} ${v.yearModel} (${formatPrice(v.price)}) que vi no SisGarage.`;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 lg:pb-8">
+    <div className="mx-auto max-w-7xl px-4 py-10 pb-32 sm:px-6 lg:pb-10">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -96,39 +98,42 @@ export default async function VehiclePage({ params }: Props) {
         <Link href={`/veiculos?marca=${encodeURIComponent(v.brand)}`} className="hover:underline">{v.brand}</Link> /{" "}
         <span className="text-slate-700">{v.model}</span>
       </nav>
-      <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-        <div className="min-w-0 space-y-6">
+      <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
+        <div className="min-w-0 space-y-8">
           <Gallery photos={v.photos} alt={title} />
-          <section className="card p-6">
-            <h2 className="mb-4 text-lg font-bold">Ficha técnica</h2>
-            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {specs.filter(([, val]) => val).map(([k, val]) => (
-                <div key={k}>
-                  <dt className="text-xs uppercase tracking-wide text-slate-500">{k}</dt>
-                  <dd className="font-semibold">{val}</dd>
+          <section className="card p-6 sm:p-7">
+            <h2 className="mb-5 text-lg font-semibold">Ficha técnica</h2>
+            <dl className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+              {specs.filter(([, , val]) => val).map(([Icon, k, val]) => (
+                <div key={k} className="flex items-start gap-3">
+                  <span className="icon-box h-10 w-10 bg-slate-100 text-slate-500"><Icon className="h-5 w-5" /></span>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-slate-500">{k}</dt>
+                    <dd className="font-semibold text-slate-900">{val}</dd>
+                  </div>
                 </div>
               ))}
             </dl>
           </section>
           {v.features.length > 0 && (
-            <section className="card p-6">
-              <h2 className="mb-4 text-lg font-bold">Itens e opcionais</h2>
+            <section className="card p-6 sm:p-7">
+              <h2 className="mb-5 text-lg font-semibold">Itens e opcionais</h2>
               <ul className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 {v.features.map((f) => (
-                  <li key={f.name} className="flex items-center gap-2"><span className="text-green-600">✓</span>{f.name}</li>
+                  <li key={f.name} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />{f.name}</li>
                 ))}
               </ul>
             </section>
           )}
           {v.description && (
-            <section className="card p-6">
-              <h2 className="mb-2 text-lg font-bold">Sobre o veículo</h2>
+            <section className="card p-6 sm:p-7">
+              <h2 className="mb-3 text-lg font-semibold">Sobre o veículo</h2>
               <p className="whitespace-pre-line text-slate-700">{v.description}</p>
             </section>
           )}
         </div>
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="card p-6">
+        <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+          <div className="card p-6 sm:p-7">
             <div className="mb-2 flex flex-wrap gap-1">
               {v.featured && <span className="badge bg-brand-600 text-white">{v.featuredLabel || "Destaque"}</span>}
               {v.status === "RESERVED" && <span className="badge bg-amber-100 text-amber-800">Reservado</span>}
@@ -146,24 +151,24 @@ export default async function VehiclePage({ params }: Props) {
               {v.store.phone && <a className="btn-secondary py-3" href={telLink(v.store.phone)}>Ligar</a>}
             </div>
           </div>
-          <div className="card p-6">
+          <div className="card p-6 sm:p-7">
             <h2 className="mb-3 font-bold">Enviar mensagem para a loja</h2>
             <LeadForm vehicleId={v.id} vehicleName={`${title} ${v.yearModel}`} />
           </div>
           <Link href={`/lojas/${v.store.slug}`} className="card block p-6 hover:border-brand-500">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Anunciado por</p>
+            <p className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><StoreIcon className="h-3.5 w-3.5" /> Anunciado por</p>
             <p className="text-lg font-bold">{v.store.name}</p>
-            <p className="text-sm text-slate-600">{v.store.address ? `${v.store.address} · ` : ""}{v.store.city}/{v.store.state}</p>
-            {v.store.phone && <p className="text-sm text-slate-600">{formatPhone(v.store.phone)}</p>}
+            <p className="mt-1 flex items-start gap-1.5 text-sm text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{v.store.address ? `${v.store.address} · ` : ""}{v.store.city}/{v.store.state}</p>
+            {v.store.phone && <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600"><Phone className="h-4 w-4 text-slate-400" />{formatPhone(v.store.phone)}</p>}
             <p className="mt-2 text-sm font-semibold text-brand-600">Ver estoque da loja →</p>
           </Link>
         </aside>
       </div>
 
       {similar.length > 0 && (
-        <section className="mt-12">
+        <section className="mt-16">
           <h2 className="mb-4 text-xl font-bold">Veja também</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {similar.map((s) => <VehicleCard key={s.id} vehicle={s} />)}
           </div>
         </section>

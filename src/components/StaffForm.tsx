@@ -6,9 +6,9 @@ import { FieldError, FormMessage } from "./FormMessage";
 export function StaffForm() {
   const { state, onSubmit, pending } = useFormAction(createStaffUser);
   return (
-    <form onSubmit={onSubmit} className="card space-y-4 p-6">
-      <h2 className="font-bold">Adicionar funcionário</h2>
-      <div className="grid gap-4 sm:grid-cols-3">
+    <form onSubmit={onSubmit} className="card space-y-5 p-5 sm:p-6">
+      <h2 className="text-lg font-semibold text-slate-900">Adicionar funcionário</h2>
+      <div className="grid gap-5 sm:grid-cols-3">
         <div>
           <label className="label" htmlFor="staff-name">Nome</label>
           <input id="staff-name" name="name" required className="input" />

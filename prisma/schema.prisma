@@ -54,6 +54,53 @@ enum VehicleStatus {
   SOLD // vendido
 }
 
+enum PurchaseSource {
+  PERSON // pessoa física
+  DEALER // outra loja
+  AUCTION // leilão
+  TRADE_IN // troca
+  OTHER
+}
+
+enum ExpenseCategory {
+  MECHANICS
+  BODYWORK
+  TIRES
+  DETAILING
+  ELECTRICAL
+  DISPATCHER // despachante
+  TRANSFER // transferência
+  INSPECTION // vistoria/laudo
+  TRANSPORT
+  COMMISSION
+  OTHER
+}
+
+enum DocumentType {
+  CRLV
+  ATPV // recibo de compra e venda (ATPV-e)
+  CAUTELAR // laudo cautelar
+  INSPECTION // vistoria
+  POWER_OF_ATTORNEY // procuração
+  SPARE_KEY
+  MANUAL
+  OWNER_ID // documento do antigo proprietário
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  OK
+  NOT_APPLICABLE
+}
+
+enum TaxKind {
+  IPVA
+  LICENSING
+  FINE
+  OTHER
+}
+
 enum WatermarkPosition {
   BOTTOM_RIGHT
   BOTTOM_LEFT
@@ -153,13 +200,34 @@ model Vehicle {
   featured        Boolean       @default(false)
   featuredLabel   String?       @db.VarChar(40) // texto do selo ("Único dono"); vazio = "Destaque"
   position        Int           @default(0) // ordem manual na vitrine da loja
+
+  // ----- Gestão interna (fase 2) -----
+  purchaseDate    DateTime?       @db.Date
+  purchasePrice   Decimal?        @db.Decimal(12, 2)
+  purchaseSource  PurchaseSource?
+  purchaseFrom    String?         @db.VarChar(120) // de quem comprou
+  purchasePayment String?         @db.VarChar(120) // como pagou
+  purchaseNotes   String?         @db.Text
+  fipeType        String?         @db.VarChar(12) // carros | motos | caminhoes
+  fipeBrandCode   String?         @db.VarChar(12)
+  fipeModelCode   String?         @db.VarChar(12)
+  fipeYearCode    String?         @db.VarChar(12)
+  fipeCode        String?         @db.VarChar(12)
+  fipeName        String?         @db.VarChar(200)
+  fipeValue       Decimal?        @db.Decimal(12, 2)
+  fipeReference   String?         @db.VarChar(40) // "novembro de 2026"
+  fipeCheckedAt   DateTime?
   views           Int           @default(0)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  photos   VehiclePhoto[]
-  features VehicleFeature[]
-  leads    Lead[]
+  photos      VehiclePhoto[]
+  features    VehicleFeature[]
+  leads       Lead[]
+  expenses    VehicleExpense[]
+  documents   VehicleDocument[]
+  taxes       VehicleTax[]
+  fipeHistory FipeHistory[]
 
   @@unique([storeId, plate])
   @@index([published, status])
@@ -205,6 +273,89 @@ model Lead {
   email     String?  @db.VarChar(191)
   message   String?  @db.Text
   read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+}
+
+/// Gastos com o veículo (preparação, despachante, etc.)
+model VehicleExpense {
+  id          String          @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory @default(OTHER)
+  description String          @db.VarChar(200)
+  amount      Decimal         @db.Decimal(12, 2)
+  date        DateTime        @db.Date
+  supplier    String?         @db.VarChar(120)
+  fileRef     String?         @db.VarChar(255) // comprovante (arquivo privado)
+  fileName    String?         @db.VarChar(160)
+  createdById String?
+  createdAt   DateTime        @default(now())
+
+  @@index([vehicleId, date])
+}
+
+/// Documentação do veículo (lista de verificação)
+model VehicleDocument {
+  id        String         @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type      DocumentType
+  label     String?        @db.VarChar(80) // nome livre quando type = OTHER
+  status    DocumentStatus @default(PENDING)
+  expiresAt DateTime?      @db.Date
+  notes     String?        @db.VarChar(255)
+  fileRef   String?        @db.VarChar(255)
+  fileName  String?        @db.VarChar(160)
+  updatedAt DateTime       @updatedAt
+
+  @@index([vehicleId])
+  @@index([status, expiresAt])
+}
+
+/// IPVA, licenciamento e multas
+model VehicleTax {
+  id          String    @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  kind        TaxKind
+  description String?   @db.VarChar(200)
+  amount      Decimal   @db.Decimal(12, 2)
+  dueDate     DateTime? @db.Date
+  paidAt      DateTime? @db.Date
+  fileRef     String?   @db.VarChar(255)
+  fileName    String?   @db.VarChar(160)
+  createdAt   DateTime  @default(now())
+
+  @@index([vehicleId])
+  @@index([paidAt, dueDate])
+}
+
+/// Valor FIPE registrado mês a mês
+model FipeHistory {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  month     String   @db.Char(7) // AAAA-MM
+  reference String   @db.VarChar(40)
+  value     Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([vehicleId, month])
+}
+
+/// Registro de quem fez o quê (inclui o admin agindo como loja)
+model AuditLog {
+  id        String   @id @default(cuid())
+  storeId   String?
+  userId    String?
+  userName  String   @db.VarChar(100)
+  asAdmin   Boolean  @default(false)
+  action    String   @db.VarChar(60)
+  entity    String?  @db.VarChar(40)
+  entityId  String?  @db.VarChar(40)
+  details   String?  @db.VarChar(255)
   createdAt DateTime @default(now())
 
   @@index([storeId, createdAt])

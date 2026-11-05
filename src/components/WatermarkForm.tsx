@@ -26,9 +26,9 @@ export function WatermarkForm({ store, photoCount }: { store: Store; photoCount:
   const [reapplying, startReapply] = useTransition();
 
   return (
-    <div className="card space-y-4 p-6">
+    <div className="card space-y-5 p-5 sm:p-6">
       <div>
-        <h2 className="text-lg font-bold">Marca d’água nas fotos</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Marca d’água nas fotos</h2>
         <p className="text-sm text-slate-500">
           O sistema guarda a foto original, então dá para ligar, trocar ou remover a marca a qualquer momento.
         </p>

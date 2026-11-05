@@ -6,7 +6,7 @@ import { FieldError, FormMessage } from "./FormMessage";
 export function PasswordForm() {
   const { state, onSubmit, pending } = useFormAction(changePassword);
   return (
-    <form onSubmit={onSubmit} className="card max-w-md space-y-4 p-6">
+    <form onSubmit={onSubmit} className="card max-w-md space-y-5 p-5 sm:p-6">
       <div>
         <label className="label" htmlFor="current">Senha atual</label>
         <input id="current" name="current" type="password" required autoComplete="current-password" className="input" />
