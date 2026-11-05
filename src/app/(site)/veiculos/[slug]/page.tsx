@@ -13,6 +13,7 @@ import { absoluteUrl } from "@/lib/site";
 import { Calendar, Car, CheckCircle2, Droplet, Fuel, Gauge, Hash, MapPin, Palette, Phone, Settings2, DoorOpen, Store as StoreIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Gallery } from "@/components/Gallery";
+import { addDays, todayLocal } from "@/lib/time";
 import { LeadForm } from "@/components/LeadForm";
 import { VehicleCard } from "@/components/VehicleCard";
 import { JsonLd } from "@/components/JsonLd";
@@ -152,8 +153,8 @@ export default async function VehiclePage({ params }: Props) {
             </div>
           </div>
           <div className="card p-6 sm:p-7">
-            <h2 className="mb-3 font-bold">Enviar mensagem para a loja</h2>
-            <LeadForm vehicleId={v.id} vehicleName={`${title} ${v.yearModel}`} />
+            <h2 className="mb-4 font-semibold">Fale com a loja ou agende</h2>
+            <LeadForm vehicleId={v.id} vehicleName={`${title} ${v.yearModel}`} minDay={addDays(todayLocal(), 1)} />
           </div>
           <Link href={`/lojas/${v.store.slug}`} className="card block p-6 hover:border-brand-500">
             <p className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500"><StoreIcon className="h-3.5 w-3.5" /> Anunciado por</p>

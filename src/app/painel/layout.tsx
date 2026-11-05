@@ -11,14 +11,19 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const { user, store, isOwner, asAdmin } = await requireStoreUser();
-  const unread = await prisma.lead.count({ where: { storeId: store.id, read: false } });
+  const [unread, requests] = await Promise.all([
+    prisma.lead.count({ where: { storeId: store.id, read: false } }),
+    prisma.appointment.count({ where: { storeId: store.id, status: "REQUESTED" } }),
+  ]);
 
   const nav: NavItem[] = [
     { href: "/painel", label: "Início", icon: "home", group: "Loja" },
     { href: "/painel/veiculos", label: "Veículos", icon: "car", group: "Loja" },
-    { href: "/painel/vendas", label: "Vendas", icon: "receipt", group: "Loja" },
+    { href: "/painel/agenda", label: "Agenda", icon: "calendar", badge: requests, group: "Loja" },
     { href: "/painel/contatos", label: "Contatos", icon: "message", badge: unread, group: "Loja" },
+    { href: "/painel/vendas", label: "Vendas", icon: "receipt", group: "Loja" },
     { href: "/painel/clientes", label: "Clientes", icon: "customer", group: "Loja" },
+    ...(isOwner ? ([{ href: "/painel/financeiro", label: "Financeiro", icon: "wallet", group: "Loja" }] satisfies NavItem[]) : []),
     { href: "/painel/fipe", label: "Tabela FIPE", icon: "gauge", group: "Loja" },
     ...(isOwner
       ? ([
@@ -66,7 +71,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <PanelShell
       nav={nav}
-      primary={["/painel", "/painel/veiculos", "/painel/vendas", "/painel/contatos"]}
+      primary={["/painel", "/painel/veiculos", "/painel/agenda", "/painel/contatos"]}
       newHref="/painel/veiculos/novo"
       title={store.name}
       subtitle={`${store.city}/${store.state}`}

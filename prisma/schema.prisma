@@ -119,6 +119,47 @@ enum PaymentMethod {
   OTHER
 }
 
+enum EntryType {
+  INCOME
+  EXPENSE
+}
+
+enum AppointmentType {
+  TEST_DRIVE
+  VISIT
+  INSPECTION // vistoria / laudo
+  DISPATCHER // despachante
+  WORKSHOP // oficina
+  DELIVERY // entrega do veículo
+  OTHER
+}
+
+enum AppointmentStatus {
+  REQUESTED // pedido pelo site, aguardando confirmação
+  SCHEDULED
+  DONE
+  NO_SHOW
+  CANCELED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  NEGOTIATING
+  WON
+  LOST
+}
+
+enum LeadSource {
+  SITE
+  WHATSAPP
+  PHONE
+  WALK_IN // foi à loja
+  INSTAGRAM
+  REFERRAL // indicação
+  OTHER
+}
+
 enum WatermarkPosition {
   BOTTOM_RIGHT
   BOTTOM_LEFT
@@ -186,8 +227,10 @@ model Store {
   users     User[]
   vehicles  Vehicle[]
   leads     Lead[]
-  customers Customer[]
-  sales     Sale[]
+  customers    Customer[]
+  sales        Sale[]
+  entries      FinancialEntry[]
+  appointments Appointment[]
 
   @@index([status])
   @@index([city, state])
@@ -249,6 +292,7 @@ model Vehicle {
   documents   VehicleDocument[]
   taxes       VehicleTax[]
   fipeHistory FipeHistory[]
+  appointments Appointment[]
   sales       Sale[]        @relation("SaleVehicle")
   tradeInFor  Sale[]        @relation("SaleTradeIn")
 
@@ -298,7 +342,31 @@ model Lead {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  // CRM
+  status       LeadStatus @default(NEW)
+  source       LeadSource @default(SITE)
+  assignedToId String?
+  nextFollowUp DateTime?  @db.Date
+  lostReason   String?    @db.VarChar(200)
+  updatedAt    DateTime   @default(now()) @updatedAt
+
+  notes        LeadNote[]
+  appointments Appointment[]
+
   @@index([storeId, createdAt])
+  @@index([storeId, status])
+}
+
+/// Histórico de conversas do CRM
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userName  String   @db.VarChar(100)
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
 }
 
 /// Gastos com o veículo (preparação, despachante, etc.)
@@ -404,7 +472,8 @@ model Customer {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  sales Sale[]
+  sales        Sale[]
+  appointments Appointment[]
 
   @@unique([storeId, document])
   @@index([storeId, name])
@@ -454,4 +523,52 @@ model SalePayment {
   paidAt  DateTime?     @db.Date
 
   @@index([saleId])
+}
+
+/// Lançamentos manuais do financeiro (despesas fixas, receitas avulsas...)
+model FinancialEntry {
+  id          String    @id @default(cuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  type        EntryType
+  category    String    @db.VarChar(40)
+  description String    @db.VarChar(200)
+  amount      Decimal   @db.Decimal(12, 2)
+  dueDate     DateTime  @db.Date
+  paidAt      DateTime? @db.Date
+  groupId     String?   @db.VarChar(30) // parcelas/repetições criadas juntas
+  notes       String?   @db.VarChar(255)
+  fileRef     String?   @db.VarChar(255)
+  fileName    String?   @db.VarChar(160)
+  createdAt   DateTime  @default(now())
+
+  @@index([storeId, dueDate])
+  @@index([storeId, paidAt])
+}
+
+/// Agenda da loja
+model Appointment {
+  id           String            @id @default(cuid())
+  storeId      String
+  store        Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  type         AppointmentType
+  status       AppointmentStatus @default(SCHEDULED)
+  startsAt     DateTime
+  durationMin  Int               @default(60)
+  title        String?           @db.VarChar(120)
+  vehicleId    String?
+  vehicle      Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  customerId   String?
+  customer     Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  leadId       String?
+  lead         Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contactName  String?           @db.VarChar(120)
+  contactPhone String?           @db.VarChar(20)
+  assignedToId String?
+  notes        String?           @db.Text
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([storeId, startsAt])
+  @@index([storeId, status])
 }
