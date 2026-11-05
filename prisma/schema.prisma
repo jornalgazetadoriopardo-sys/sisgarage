@@ -1,0 +1,211 @@
+// Banco: MySQL 8 / MariaDB 10.6+ (roda no XAMPP e em hospedagem cPanel).
+// Collation utf8mb4_unicode_ci: buscas ignoram maiúsculas e acentos.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "foreignKeys"
+}
+
+enum Role {
+  SUPER_ADMIN // dono da plataforma
+  STORE_OWNER // dono da loja
+  STORE_STAFF // vendedor/funcionário da loja
+}
+
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+  OTHER
+}
+
+enum Fuel {
+  FLEX
+  GASOLINE
+  ETHANOL
+  DIESEL
+  ELECTRIC
+  HYBRID
+  GNV
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  CVT
+  AUTOMATED
+}
+
+enum VehicleStatus {
+  PREPARING // em preparação (não aparece no site)
+  AVAILABLE // à venda
+  RESERVED // reservado
+  SOLD // vendido
+}
+
+enum WatermarkPosition {
+  BOTTOM_RIGHT
+  BOTTOM_LEFT
+  TOP_RIGHT
+  TOP_LEFT
+  CENTER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(191)
+  passwordHash String   @db.VarChar(100)
+  role         Role     @default(STORE_STAFF)
+  active       Boolean  @default(true)
+  storeId      String?
+  store        Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+/// Tentativas de login, para limitar força bruta por e-mail e por IP.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String   @db.VarChar(191)
+  ip        String   @db.VarChar(64)
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
+
+model Store {
+  id           String      @id @default(cuid())
+  name         String      @db.VarChar(100)
+  slug         String      @unique @db.VarChar(120)
+  cnpj         String?     @unique @db.VarChar(14)
+  email        String      @db.VarChar(191)
+  phone        String?     @db.VarChar(20)
+  whatsapp     String?     @db.VarChar(20)
+  instagram    String?     @db.VarChar(60)
+  openingHours String?     @db.VarChar(200)
+  zipCode      String?     @db.VarChar(8)
+  address      String?     @db.VarChar(200)
+  city         String      @db.VarChar(80)
+  state        String      @db.Char(2)
+  description  String?     @db.Text
+  logoUrl      String?     @db.VarChar(255)
+  status       StoreStatus @default(PENDING)
+
+  // Marca d'água aplicada nas fotos (a partir do original guardado, então é reversível)
+  watermarkEnabled  Boolean           @default(false)
+  watermarkUrl      String?           @db.VarChar(255) // PNG com fundo transparente
+  watermarkPosition WatermarkPosition @default(BOTTOM_RIGHT)
+  watermarkSize     Int               @default(22) // % da largura da foto
+  watermarkOpacity  Int               @default(80) // 10–100
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    User[]
+  vehicles Vehicle[]
+  leads    Lead[]
+
+  @@index([status])
+  @@index([city, state])
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  type            VehicleType   @default(CAR)
+  brand           String        @db.VarChar(60)
+  model           String        @db.VarChar(80)
+  version         String?       @db.VarChar(140)
+  yearManufacture Int           @db.SmallInt
+  yearModel       Int           @db.SmallInt
+  mileage         Int           @default(0)
+  price           Decimal       @db.Decimal(12, 2)
+  previousPrice   Decimal?      @db.Decimal(12, 2) // preço "De" riscado (só aparece se maior que o preço)
+  color           String?       @db.VarChar(40)
+  fuel            Fuel          @default(FLEX)
+  transmission    Transmission  @default(MANUAL)
+  doors           Int?          @db.TinyInt // só carro
+  engine          String?       @db.VarChar(30) // motor (1.0, 2.0) ou cilindrada (160 cc)
+  // Dados internos: nunca exibidos no site (só o último dígito da placa)
+  plate           String?       @db.VarChar(7)
+  renavam         String?       @db.VarChar(11)
+  chassis         String?       @db.VarChar(17)
+  description     String?       @db.Text
+  status          VehicleStatus @default(PREPARING)
+  published       Boolean       @default(false)
+  featured        Boolean       @default(false)
+  featuredLabel   String?       @db.VarChar(40) // texto do selo ("Único dono"); vazio = "Destaque"
+  position        Int           @default(0) // ordem manual na vitrine da loja
+  views           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  photos   VehiclePhoto[]
+  features VehicleFeature[]
+  leads    Lead[]
+
+  @@unique([storeId, plate])
+  @@index([published, status])
+  @@index([storeId, position])
+  @@index([brand, model])
+  @@index([price])
+}
+
+/// Opcionais em tabela própria (permite filtrar por opcional no banco).
+model VehicleFeature {
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  name      String  @db.VarChar(80)
+
+  @@id([vehicleId, name])
+  @@index([name])
+}
+
+model VehiclePhoto {
+  id           String   @id @default(cuid())
+  vehicleId    String
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  url          String   @db.VarChar(255) // versão grande (1600px, WebP)
+  thumbUrl     String   @db.VarChar(255) // miniatura (600px, WebP)
+  originalPath String   @db.VarChar(255) // original privado, usado para refazer a marca d'água
+  width        Int      @default(0)
+  height       Int      @default(0)
+  watermarked  Boolean  @default(false)
+  position     Int      @default(0) // 0 = capa
+  createdAt    DateTime @default(now())
+
+  @@index([vehicleId, position])
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  name      String   @db.VarChar(100)
+  phone     String   @db.VarChar(20)
+  email     String?  @db.VarChar(191)
+  message   String?  @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+}
