@@ -136,3 +136,45 @@ export const paymentMethodLabels = {
   PROMISSORY: "Promissória/parcelado",
   OTHER: "Outro",
 } as const;
+
+export const EXPENSE_CATEGORIES = [
+  "Aluguel", "Salários e encargos", "Pró-labore", "Energia", "Água", "Internet e telefone", "Anúncios e marketing",
+  "Contador", "Impostos da empresa", "Sistemas e assinaturas", "Manutenção da loja", "Limpeza e material", "Tarifas bancárias", "Outras despesas",
+] as const;
+export const INCOME_CATEGORIES = ["Serviços", "Comissão de financiamento", "Venda de peças", "Aporte", "Outras receitas"] as const;
+
+export const appointmentTypeLabels = {
+  TEST_DRIVE: "Test drive",
+  VISIT: "Visita à loja",
+  INSPECTION: "Vistoria / laudo",
+  DISPATCHER: "Despachante",
+  WORKSHOP: "Oficina",
+  DELIVERY: "Entrega de veículo",
+  OTHER: "Outro",
+} as const;
+
+export const appointmentStatusLabels = {
+  REQUESTED: "Pedido pelo site",
+  SCHEDULED: "Agendado",
+  DONE: "Realizado",
+  NO_SHOW: "Não compareceu",
+  CANCELED: "Cancelado",
+} as const;
+
+export const leadStatusLabels = {
+  NEW: "Novo",
+  CONTACTED: "Em contato",
+  NEGOTIATING: "Negociando",
+  WON: "Ganho",
+  LOST: "Perdido",
+} as const;
+
+export const leadSourceLabels = {
+  SITE: "Site",
+  WHATSAPP: "WhatsApp",
+  PHONE: "Telefone",
+  WALK_IN: "Foi à loja",
+  INSTAGRAM: "Instagram",
+  REFERRAL: "Indicação",
+  OTHER: "Outro",
+} as const;

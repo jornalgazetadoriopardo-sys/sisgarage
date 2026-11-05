@@ -56,6 +56,17 @@ Plataforma para lojas de veículos. Cada loja cadastra o estoque, que aparece nu
   compartilhar envia direto pelo WhatsApp
 - Cancelamento com motivo (o veículo volta ao estoque)
 
+**Financeiro, agenda e CRM (fase 4)**
+- Financeiro (só o dono): fluxo de caixa que junta sozinho vendas, compras, gastos, IPVA e comissões;
+  despesas da loja com repetição mensal e comprovante; contas a pagar e a receber com "baixar";
+  gráfico de 6 meses e resultado do mês (receita, custo dos vendidos, comissões, despesas)
+- Agenda: test drive, visita, vistoria, despachante, oficina e entrega; semana em faixa de dias;
+  confirmar pelo WhatsApp com mensagem pronta; botão "Google Agenda"; pedidos feitos pelo site
+  (página do veículo) chegam para confirmação
+- CRM: contatos em etapas (novo, em contato, negociando, ganho, perdido) em quadro; histórico de
+  conversas; data de retorno e responsável; contatos manuais (WhatsApp, telefone, loja, Instagram)
+- Início mostra a agenda do dia e alerta contas vencidas, pedidos de agendamento e retornos
+
 **Painel master** (`/admin`)
 - Aprovar, suspender e reativar lojas
 - "Acessar painel" de qualquer loja, com faixa de aviso e registro no histórico

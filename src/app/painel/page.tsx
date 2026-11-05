@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle, BadgeDollarSign, CalendarClock, Camera, Car, ChevronRight, FileWarning, Gauge, Handshake, Hourglass,
+  AlertTriangle, BadgeDollarSign, CalendarClock, CalendarDays, Camera, Car, ChevronRight, FileWarning, Gauge, Handshake, Hourglass,
   MessageSquare, PiggyBank, Plus, Sparkles, TrendingUp, Wallet,
 } from "lucide-react";
 import { canSeeFinance, requireStoreUser } from "@/lib/auth";
@@ -9,6 +9,8 @@ import { prisma } from "@/lib/db";
 import { daysSince, vehicleFinance } from "@/lib/finance";
 import { formatDate, formatMoney, vehicleTitle, whatsappLink } from "@/lib/format";
 import { IconBox, PageHeader, Section, StatCard, type Tone } from "@/components/ui";
+import { appointmentTypeLabels } from "@/lib/labels";
+import { addDays, localTime, startOfLocalDay, todayLocal } from "@/lib/time";
 
 const STALE_DAYS = 90;
 
@@ -25,6 +27,17 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
   const weekAgo = new Date(Date.now() - 7 * 86_400_000);
 
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const todayStr = todayLocal();
+  const [todayAppointments, siteRequests, followUps, overdueBills] = await Promise.all([
+    prisma.appointment.findMany({
+      where: { storeId, status: "SCHEDULED", startsAt: { gte: startOfLocalDay(todayStr), lt: startOfLocalDay(addDays(todayStr, 1)) } },
+      orderBy: { startsAt: "asc" },
+      include: { vehicle: { select: { brand: true, model: true } } },
+    }),
+    prisma.appointment.count({ where: { storeId, status: "REQUESTED" } }),
+    prisma.lead.count({ where: { storeId, nextFollowUp: { lte: today }, status: { notIn: ["WON", "LOST"] } } }),
+    finance ? prisma.financialEntry.count({ where: { storeId, type: "EXPENSE", paidAt: null, dueDate: { lt: today } } }) : Promise.resolve(0),
+  ]);
   const [stock, unreadLeads, newLeads, leads, monthSales, reservations, overdueInstallments] = await Promise.all([
     prisma.vehicle.findMany({
       where: { storeId, status: { not: "SOLD" } },
@@ -75,6 +88,9 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
   const first = (list: typeof stock, tab = "") => (list.length === 1 ? `/painel/veiculos/${list[0].id}${tab}` : "/painel/veiculos");
   const alerts: Alert[] = [];
   if (overdue.length) alerts.push({ icon: AlertTriangle, tone: "red", title: `${overdue.length} débito(s) vencido(s)`, text: "IPVA, licenciamento ou multas com vencimento passado.", href: first([...new Set(overdue)], "?aba=gestao") });
+  if (overdueBills) alerts.push({ icon: AlertTriangle, tone: "red", title: `${overdueBills} conta(s) da loja vencida(s)`, text: "Despesas lançadas no financeiro e ainda não pagas.", href: "/painel/financeiro?aba=pagar" });
+  if (siteRequests) alerts.push({ icon: CalendarClock, tone: "violet", title: `${siteRequests} pedido(s) de agendamento pelo site`, text: "Clientes querendo test drive ou visita. Confirme o horário.", href: "/painel/agenda" });
+  if (followUps) alerts.push({ icon: MessageSquare, tone: "blue", title: `${followUps} contato(s) para retornar hoje`, text: "Retornos marcados no acompanhamento dos contatos.", href: "/painel/contatos?filtro=retornar" });
   if (overdueInstallments.length) {
     const ids = [...new Set(overdueInstallments.map((p) => p.saleId))];
     alerts.push({ icon: AlertTriangle, tone: "red", title: `${overdueInstallments.length} parcela(s) de venda atrasada(s)`, text: "Financiamentos ou promissórias com vencimento passado.", href: ids.length === 1 ? `/painel/vendas/${ids[0]}` : "/painel/vendas" });
@@ -115,6 +131,23 @@ export default async function PanelHome({ searchParams }: { searchParams: Promis
           </>
         )}
       </div>
+
+      {todayAppointments.length > 0 && (
+        <Section icon={CalendarDays} tone="blue" title={`Hoje na agenda (${todayAppointments.length})`}
+          actions={<Link href="/painel/agenda" className="btn-ghost">Abrir agenda <ChevronRight className="h-4 w-4" /></Link>}>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {todayAppointments.map((a) => (
+              <li key={a.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3">
+                <span className="rounded-lg bg-brand-50 px-2.5 py-1.5 text-sm font-bold text-brand-700">{localTime(a.startsAt)}</span>
+                <div className="min-w-0 text-sm">
+                  <p className="truncate font-medium text-slate-800">{appointmentTypeLabels[a.type]}{a.vehicle ? ` · ${a.vehicle.model}` : ""}</p>
+                  <p className="truncate text-slate-500">{a.contactName ?? a.title ?? ""}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Atenção */}
