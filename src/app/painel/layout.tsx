@@ -17,6 +17,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     { href: "/painel", label: "Início", icon: "home", group: "Loja" },
     { href: "/painel/veiculos", label: "Veículos", icon: "car", group: "Loja" },
     { href: "/painel/contatos", label: "Contatos", icon: "message", badge: unread, group: "Loja" },
+    { href: "/painel/fipe", label: "Tabela FIPE", icon: "gauge", group: "Loja" },
     ...(isOwner
       ? ([
           { href: "/painel/loja", label: "Dados da loja", icon: "store", group: "Configurações" },
