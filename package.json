@@ -14,13 +14,16 @@
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:seed:demo": "tsx --env-file=.env prisma/seed.ts --demo",
-    "setup": "prisma migrate deploy && prisma generate && tsx --env-file=.env prisma/seed.ts --demo"
+    "setup": "prisma migrate deploy && prisma generate && tsx --env-file=.env prisma/seed.ts --demo",
+    "vercel-build": "prisma generate && prisma migrate deploy && tsx prisma/seed.ts && next build",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@vercel/blob": "^2.8.2",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.15",
     "next": "^15.5.29",

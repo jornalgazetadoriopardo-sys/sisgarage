@@ -148,11 +148,12 @@ export async function reapplyWatermark(): Promise<ActionState> {
   const store = await prisma.store.findUniqueOrThrow({ where: { id: storeId } });
   const wm = watermarkOf(store);
   const photos = await prisma.vehiclePhoto.findMany({ where: { vehicle: { storeId } } });
+  // Na Vercel cada chamada tem limite de tempo; lojas com muitas fotos podem precisar clicar de novo.
   let done = 0;
   let failed = 0;
   for (const photo of photos) {
     try {
-      const v = await rerenderVehiclePhoto(photo, wm);
+      const v = await rerenderVehiclePhoto(photo, `stores/${storeId}/vehicles/${photo.vehicleId}`, wm);
       await prisma.vehiclePhoto.update({
         where: { id: photo.id },
         data: { url: v.url, thumbUrl: v.thumbUrl, width: v.width, height: v.height, watermarked: v.watermarked },

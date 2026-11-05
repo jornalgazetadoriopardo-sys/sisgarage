@@ -3,6 +3,7 @@
 Plataforma para lojas de veículos. Cada loja cadastra o estoque, que aparece num site público para os compradores. Há um painel de gestão para cada loja e um painel de administração para o dono da plataforma.
 
 **Para rodar no seu computador (Windows + XAMPP), siga o [COMO-RODAR.md](COMO-RODAR.md).**
+**Para publicar na internet (Vercel, grátis para testes), siga o [PUBLICAR-VERCEL.md](PUBLICAR-VERCEL.md).**
 
 ## Recursos (fase 1)
 
@@ -52,7 +53,7 @@ Plataforma para lojas de veículos. Cada loja cadastra o estoque, que aparece nu
 | Visual | Tailwind CSS 4 |
 | Banco | **MySQL 8 / MariaDB 10.6+** (XAMPP local, cPanel ou servidor próprio) via Prisma |
 | Migrações | `prisma/migrations` (versionadas no git, aplicadas com `prisma migrate deploy`) |
-| Imagens | sharp (WebP, miniaturas, marca d'água) |
+| Imagens | sharp (WebP, miniaturas, marca d'água); disco local ou Vercel Blob (automático) |
 | Arrastar e soltar | SortableJS (funciona no toque) |
 
 ## Comandos

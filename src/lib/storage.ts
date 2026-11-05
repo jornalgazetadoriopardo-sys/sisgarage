@@ -2,6 +2,7 @@ import "server-only";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
+import { del as blobDel, put as blobPut } from "@vercel/blob";
 import sharp, { type Sharp } from "sharp";
 
 /**
@@ -12,7 +13,10 @@ import sharp, { type Sharp } from "sharp";
  * - O site recebe duas versões em WebP: grande (1600px) e miniatura (600px).
  * - O tipo do arquivo é conferido pelo conteúdo (sharp lê a imagem), não pela extensão.
  *
- * Para hospedar as fotos na nuvem (S3/R2), troque writePublic/deletePublic mantendo as assinaturas.
+ * Dois destinos, escolhidos automaticamente:
+ * - DISCO (padrão, XAMPP/servidor próprio): UPLOAD_DIR (público, servido em /uploads) e ORIGINALS_DIR (privado).
+ * - VERCEL BLOB (quando existe BLOB_READ_WRITE_TOKEN): necessário na Vercel, que não guarda arquivos em disco.
+ *   Os originais ficam em "originals/" com nome aleatório e não aparecem em nenhuma página.
  */
 
 export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB por foto (fotos de celular)
@@ -38,24 +42,99 @@ function randomName() {
   return randomBytes(8).toString("hex");
 }
 
+export function usingBlob() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+function assertWritableStorage() {
+  if (process.env.VERCEL && !usingBlob()) {
+    throw new UploadError("Armazenamento de fotos não configurado. Conecte um Vercel Blob ao projeto (veja PUBLICAR-VERCEL.md).");
+  }
+}
+
+const CONTENT_TYPES: Record<string, string> = { ".webp": "image/webp", ".png": "image/png", ".orig": "application/octet-stream" };
+
+function toKey(rel: string) {
+  return rel.split(path.sep).join("/");
+}
+
+/** Grava um arquivo público e devolve a URL (/uploads/... no disco, https://... no Blob). */
 async function writePublic(rel: string, data: Buffer) {
+  assertWritableStorage();
+  if (usingBlob()) {
+    const blob = await blobPut(toKey(rel), data, {
+      access: "public",
+      contentType: CONTENT_TYPES[path.extname(rel)],
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000,
+    });
+    return blob.url;
+  }
   const full = path.join(uploadRoot(), rel);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, data);
-  return `/uploads/${rel.split(path.sep).join("/")}`;
+  return `/uploads/${toKey(rel)}`;
 }
 
-/** Remove um arquivo público pela URL (/uploads/...). Ignora o que não existir. */
+function isBlobUrl(url: string) {
+  return /^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url);
+}
+
+/** Remove um arquivo público pela URL. Ignora o que não existir. */
 export async function deletePublic(url: string | null | undefined) {
-  if (!url || !url.startsWith("/uploads/")) return;
+  if (!url) return;
+  if (isBlobUrl(url)) {
+    if (usingBlob()) await blobDel(url).catch(() => undefined);
+    return;
+  }
+  if (!url.startsWith("/uploads/")) return;
   const full = path.resolve(uploadRoot(), url.slice("/uploads/".length));
   if (!full.startsWith(uploadRoot() + path.sep)) return;
   await unlink(full).catch(() => undefined);
 }
 
-async function deleteOriginal(rel: string | null | undefined) {
-  if (!rel) return;
-  const full = path.resolve(originalsRoot(), rel);
+async function readPublic(url: string) {
+  if (isBlobUrl(url)) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Falha ao ler ${url}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+  const full = path.resolve(uploadRoot(), url.slice("/uploads/".length));
+  if (!full.startsWith(uploadRoot() + path.sep)) throw new Error("Caminho inválido");
+  return readFile(full);
+}
+
+/** Originais: caminho relativo no disco, ou URL do Blob. */
+async function writeOriginal(rel: string, data: Buffer) {
+  assertWritableStorage();
+  if (usingBlob()) {
+    const blob = await blobPut(`originals/${toKey(rel)}`, data, {
+      access: "public",
+      contentType: "application/octet-stream",
+      addRandomSuffix: true,
+    });
+    return blob.url;
+  }
+  const full = path.join(originalsRoot(), rel);
+  await mkdir(path.dirname(full), { recursive: true });
+  await writeFile(full, data);
+  return rel;
+}
+
+async function readOriginal(ref: string) {
+  if (isBlobUrl(ref)) return readPublic(ref);
+  const full = path.resolve(originalsRoot(), ref);
+  if (!full.startsWith(originalsRoot() + path.sep)) throw new Error("Caminho inválido");
+  return readFile(full);
+}
+
+async function deleteOriginal(ref: string | null | undefined) {
+  if (!ref) return;
+  if (isBlobUrl(ref)) {
+    if (usingBlob()) await blobDel(ref).catch(() => undefined);
+    return;
+  }
+  const full = path.resolve(originalsRoot(), ref);
   if (!full.startsWith(originalsRoot() + path.sep)) return;
   await unlink(full).catch(() => undefined);
 }
@@ -85,15 +164,9 @@ export type WatermarkConfig = {
   opacity: number; // 10–100
 };
 
-async function loadPublic(url: string) {
-  const full = path.resolve(uploadRoot(), url.slice("/uploads/".length));
-  if (!full.startsWith(uploadRoot() + path.sep)) throw new Error("Caminho inválido");
-  return readFile(full);
-}
-
 async function applyWatermark(image: Sharp, width: number, height: number, wm: WatermarkConfig) {
   if (!wm.enabled || !wm.url) return { image, applied: false };
-  const logo = await loadPublic(wm.url).catch(() => null);
+  const logo = await readPublic(wm.url).catch(() => null);
   if (!logo) return { image, applied: false };
 
   const targetW = Math.max(40, Math.round((width * Math.min(60, Math.max(5, wm.size))) / 100));
@@ -150,15 +223,13 @@ async function renderVersions(original: Buffer, folder: string, wm: WatermarkCon
 export async function saveVehiclePhoto(file: File, folder: string, wm: WatermarkConfig): Promise<ProcessedPhoto> {
   const original = await readImageFile(file);
   const dir = safeFolder(folder);
-  const originalPath = path.join(dir, `${randomName()}.orig`);
-  const originalFull = path.join(originalsRoot(), originalPath);
-  await mkdir(path.dirname(originalFull), { recursive: true });
-  await writeFile(originalFull, original);
+  const originalPath = await writeOriginal(path.join(dir, `${randomName()}.orig`), original);
   try {
     const versions = await renderVersions(original, dir, wm);
     return { ...versions, originalPath };
   } catch (e) {
     await deleteOriginal(originalPath);
+    if (e instanceof UploadError) throw e;
     throw new UploadError(`Não foi possível processar ${file.name}.`, { cause: e });
   }
 }
@@ -166,11 +237,11 @@ export async function saveVehiclePhoto(file: File, folder: string, wm: Watermark
 /** Refaz as versões públicas a partir do original (ex.: ligar/desligar a marca d'água). */
 export async function rerenderVehiclePhoto(
   photo: { url: string; thumbUrl: string; originalPath: string },
+  folder: string,
   wm: WatermarkConfig,
 ) {
-  const original = await readFile(path.join(originalsRoot(), photo.originalPath));
-  const folder = path.dirname(photo.originalPath);
-  const versions = await renderVersions(original, folder, wm);
+  const original = await readOriginal(photo.originalPath);
+  const versions = await renderVersions(original, safeFolder(folder), wm);
   // novo nome de arquivo: o navegador não mostra a versão antiga em cache
   await deletePublic(photo.url);
   await deletePublic(photo.thumbUrl);

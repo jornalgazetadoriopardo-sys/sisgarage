@@ -3,6 +3,7 @@
  *
  *   npm run db:seed          → cria o administrador da plataforma
  *   npm run db:seed:demo     → administrador + loja de demonstração com veículos
+ *   (na Vercel roda a cada deploy; SEED_DEMO=1 inclui a loja demo. Nada é duplicado.)
  *
  * Defina ADMIN_EMAIL e ADMIN_PASSWORD no .env antes de rodar em produção.
  */
@@ -10,7 +11,7 @@ import { PrismaClient, type Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
-const withDemo = process.argv.includes("--demo");
+const withDemo = process.argv.includes("--demo") || process.env.SEED_DEMO === "1";
 
 async function main() {
   const adminEmail = (process.env.ADMIN_EMAIL || "admin@sisgarage.local").toLowerCase();

@@ -4,6 +4,9 @@ import { storeStatusLabels } from "@/lib/labels";
 import { StoreForm } from "@/components/StoreForm";
 import { WatermarkForm } from "@/components/WatermarkForm";
 
+// "Aplicar em todas as fotos" pode demorar: até 60 s na Vercel (plano grátis)
+export const maxDuration = 60;
+
 export default async function StoreSettingsPage() {
   const { store } = await requireStoreOwner();
   const photoCount = await prisma.vehiclePhoto.count({ where: { vehicle: { storeId: store.id } } });
