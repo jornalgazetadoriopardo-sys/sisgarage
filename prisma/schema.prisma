@@ -212,6 +212,7 @@ model Store {
   state        String      @db.Char(2)
   description  String?     @db.Text
   logoUrl      String?     @db.VarChar(255)
+  brandColor   String?     @db.VarChar(7) // cor principal dos posts (#RRGGBB)
   status       StoreStatus @default(PENDING)
 
   // Marca d'água aplicada nas fotos (a partir do original guardado, então é reversível)
@@ -291,7 +292,8 @@ model Vehicle {
   expenses    VehicleExpense[]
   documents   VehicleDocument[]
   taxes       VehicleTax[]
-  fipeHistory FipeHistory[]
+  fipeHistory  FipeHistory[]
+  priceHistory PriceHistory[]
   appointments Appointment[]
   sales       Sale[]        @relation("SaleVehicle")
   tradeInFor  Sale[]        @relation("SaleTradeIn")
@@ -571,4 +573,16 @@ model Appointment {
 
   @@index([storeId, startsAt])
   @@index([storeId, status])
+}
+
+/// Histórico de alterações do preço de venda
+model PriceHistory {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  price     Decimal  @db.Decimal(12, 2)
+  userName  String   @db.VarChar(100)
+  changedAt DateTime @default(now())
+
+  @@index([vehicleId, changedAt])
 }

@@ -54,6 +54,13 @@ export function StoreForm({ store }: { store: Store }) {
           <input id="instagram" name="instagram" defaultValue={store.instagram ? `@${store.instagram}` : ""} className="input" placeholder="@sualoja" />
         </div>
         <div>
+          <label className="label" htmlFor="brandColor">Cor da loja (posts e documentos)</label>
+          <div className="flex items-center gap-3">
+            <input id="brandColor" name="brandColor" type="color" defaultValue={store.brandColor ?? "#1d55d8"} className="h-11 w-16 cursor-pointer rounded-lg border border-slate-300 bg-white p-1" />
+            <span className="text-xs text-slate-500">Usada no fundo e nos destaques dos posts.</span>
+          </div>
+        </div>
+        <div>
           <label className="label" htmlFor="openingHours">Horário de atendimento</label>
           <input id="openingHours" name="openingHours" defaultValue={store.openingHours ?? ""} className="input" placeholder="Seg a sex 8h–18h · Sáb 8h–12h" />
         </div>

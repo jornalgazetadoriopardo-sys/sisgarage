@@ -124,6 +124,7 @@ export async function saveSale(_prev: ActionState, formData: FormData): Promise<
           purchaseSource: "TRADE_IN",
           purchaseFrom: customer.name,
           purchasePayment: `Troca na venda do ${vehicle.brand} ${vehicle.model}`,
+          priceHistory: { create: { price: tradeInPayment!.amount, userName: ctx.user.name } },
         },
       });
       tradeInVehicleId = t.id;
